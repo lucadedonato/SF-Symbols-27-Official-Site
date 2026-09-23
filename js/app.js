@@ -213,15 +213,27 @@
   }
 
   async function loadBundledCaptures() {
-    for (const symbol of symbols) {
-      const root = bundledCaptureRoot + encodeURIComponent(symbol.name) + "/";
-      const legacyRoot = symbol.name === "folder" ? bundledCaptureRoot : null;
+    let names = ["folder"];
+    try {
+      const response = await fetch(bundledCaptureRoot + "index.json");
+      if (response.ok) {
+        const catalog = await response.json();
+        if (Array.isArray(catalog.symbols)) {
+          names = [...new Set([...catalog.symbols, "folder"])];
+        }
+      }
+    } catch (_) { /* Optional capture index not installed. */ }
+
+    for (const name of names) {
+      if (!symbols.some(symbol => symbol.name === name)) continue;
+      const root = bundledCaptureRoot + encodeURIComponent(name) + "/";
+      const legacyRoot = name === "folder" ? bundledCaptureRoot : null;
       for (const directory of [root, legacyRoot].filter(Boolean)) {
         try {
           const response = await fetch(directory + "manifest.json");
           if (!response.ok) continue;
           const manifest = await response.json();
-          if (manifest.source !== "Apple Symbols.framework" || manifest.symbol !== symbol.name ||
+          if (manifest.source !== "Apple Symbols.framework" || manifest.symbol !== name ||
               manifest.effect !== "bounce" || !Number.isInteger(manifest.frames) ||
               manifest.frames < 6 || manifest.uniquePixelFrames < 6 ||
               !(Number(manifest.fps) > 0 && Number(manifest.fps) <= 120)) continue;
@@ -232,10 +244,10 @@
             fetch(frames[frames.length - 1], { method: "HEAD" })
           ]);
           if (!first.ok || !last.ok) continue;
-          captures.set(symbol.name, {
+          captures.set(name, {
             effect: manifest.effect, fps: Number(manifest.fps), frames, bundled: true
           });
-          if (currentSymbol?.name === symbol.name) refreshCaptureControls();
+          if (currentSymbol?.name === name) refreshCaptureControls();
           break;
         } catch (_) { /* The optional capture is not installed. */ }
       }
