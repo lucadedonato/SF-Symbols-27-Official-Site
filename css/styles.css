@@ -154,3 +154,16 @@ main { max-width: 1500px; margin: 0 auto; padding: 24px 28px 44px; }
 #capturedFrame[hidden] { display: none !important; }
 .modal-preview.captured-active #modalImage, .modal-preview.captured-active #modalLayered { display: none !important; }
 @media (max-width: 700px) { .import-frames { width: 100%; } }
+
+.capture-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 13px;
+  border-radius: 999px;
+  background: #1d1d1f;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+}
+.capture-download:hover { background: #424245; }
