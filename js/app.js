@@ -13,8 +13,6 @@
 
   const searchInput = document.getElementById("search");
   const categorySelect = document.getElementById("category");
-  const onlyAnimated = document.getElementById("onlyAnimated");
-  const animationCounter = document.getElementById("animationCounter");
   const grid = document.getElementById("grid");
   const counter = document.getElementById("counter");
   const loadMoreButton = document.getElementById("loadMore");
@@ -30,10 +28,11 @@
   const animationButtons = document.getElementById("animationButtons");
   const stopAnimationButton = document.getElementById("stopAnimation");
   const downloadButton = document.getElementById("downloadButton");
-  const frameFolder = document.getElementById("frameFolder");
   const capturedFrame = document.getElementById("capturedFrame");
   const captureStatus = document.getElementById("captureStatus");
-  let captureDownload = null;
+  const animationDownloadGroup = document.getElementById("animationDownloadGroup");
+  const animationDownloadSelect = document.getElementById("animationDownloadSelect");
+  const downloadAnimationButton = document.getElementById("downloadAnimationButton");
   const captures = new Map();
   const bundledCaptureRoot = "assets/captures/";
   const capturedEffects = ["bounce", "pulse", "breathe", "wiggle", "rotate", "drawOn", "drawOff"];
@@ -81,7 +80,6 @@
 
     filtered = symbols.filter(symbol => {
       if (category && !(symbol.categories || []).includes(category)) return false;
-      if (onlyAnimated.checked && !capturedEffects.some(effect => captures.has(symbol.name + "::" + effect))) return false;
       return !query || searchableText(symbol).includes(query);
     });
 
@@ -144,7 +142,11 @@
 
     grid.appendChild(fragment);
 
-    counter.textContent = `${filtered.length.toLocaleString("pt-BR")} símbolos`;
+    const total = Number(DATA.summary?.catalog || symbols.length);
+    const officialSvg = Number(DATA.summary?.officialSvg || symbols.filter(item => item.svg).length);
+    counter.textContent = filtered.length === total
+      ? total.toLocaleString("pt-BR") + " símbolos • " + officialSvg.toLocaleString("pt-BR") + " SVGs oficiais"
+      : filtered.length.toLocaleString("pt-BR") + " de " + total.toLocaleString("pt-BR") + " símbolos";
     loadMoreButton.hidden = visibleCount >= filtered.length;
   }
 
@@ -246,79 +248,74 @@
         } catch (_) { /* Capture absent or invalid. */ }
       }
     }
-    const animatedSymbols = new Set(Array.from(captures.keys()).map(key => key.split("::")[0]));
-    animationCounter.textContent = animatedSymbols.size.toLocaleString("pt-BR") + " símbolos com animação verificada";
     if (currentSymbol) refreshCaptureControls();
-    if (onlyAnimated.checked) applyFilters();
-  }
-
-  function refreshCaptureControls() {
-    if (!currentSymbol) return;
-    animationButtons.replaceChildren();
-    const available = capturedEffects
-      .map(effect => captures.get(currentSymbol.name + "::" + effect))
-      .filter(Boolean);
-
-    animationSection.hidden = available.length === 0;
-    captureStatus.textContent = available.length
-      ? available.length + " animação(ões) capturada(s) do runtime Apple"
-      : "Nenhuma animação do runtime Apple capturada para este símbolo.";
-
-    for (const capture of available) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.captured = capture.effect;
-      button.textContent = "▶ " + capture.effect[0].toUpperCase() + capture.effect.slice(1);
-      button.addEventListener("click", () => playCaptured(capture));
-      animationButtons.appendChild(button);
-
-      const download = document.createElement("a");
-      download.dataset.captureDownload = capture.effect;
-      download.className = "capture-download";
-      download.href = capture.download;
-      download.download = currentSymbol.name + "-" + capture.effect + ".zip";
-      download.textContent = "Baixar " + capture.effect + " (.zip)";
-      animationButtons.appendChild(download);
-    }
-  }
-
-  async function importCapturedFolder(files) {
-    const selected = Array.from(files);
-    const manifestFile = selected.find(file => file.name === "manifest.json");
-    if (!manifestFile) {
-      captureStatus.textContent = "Selecione a pasta que contém manifest.json e os frames PNG.";
-      return;
-    }
-    let manifest;
-    try {
-      manifest = JSON.parse(await manifestFile.text());
-    } catch (_) {
-      captureStatus.textContent = "Manifest inválido.";
-      return;
-    }
-    const symbol = symbols.find(item => item.name === manifest.symbol);
-    const pngFiles = selected.filter(file => /^frame-\d+\.png$/i.test(file.name))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    if (!symbol || manifest.source !== "Apple Symbols.framework" ||
-        !Number.isInteger(manifest.frames) || pngFiles.length !== manifest.frames ||
-        !(manifest.uniquePixelFrames >= 6) ||
-        !(Number(manifest.fps) > 0 && Number(manifest.fps) <= 120)) {
-      captureStatus.textContent = "Captura incompatível ou não validada. Nenhuma animação importada.";
-      return;
-    }
-    const effect = String(manifest.effect);
-    const key = symbol.name + "::" + effect;
-    const old = captures.get(key);
-    if (old && !old.bundled) old.frames.forEach(url => URL.revokeObjectURL(url));
-    const frames = pngFiles.map(file => URL.createObjectURL(file));
-    captures.set(key, { effect, fps: Number(manifest.fps), frames, bundled: false });
-    if (currentSymbol?.name === symbol.name) refreshCaptureControls();
-    captureStatus.textContent = "Captura importada: " + symbol.name + " / " + manifest.effect;
   }
 
   function renderAnimationButtons(symbol) {
     animationButtons.replaceChildren();
-    animationSection.hidden = true;
+    const effects = ENGINE.availableEffects(symbol.name, Boolean(symbol.svg));
+
+    for (const effect of effects) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "▶ " + effect.label;
+      button.addEventListener("click", () => {
+        stopCapturedPlayback();
+        ENGINE.play(effect.id, symbol.name);
+      });
+      animationButtons.appendChild(button);
+    }
+
+    return effects;
+  }
+
+  function refreshCaptureControls() {
+    if (!currentSymbol) return;
+
+    const genericEffects = renderAnimationButtons(currentSymbol);
+    const capturesForSymbol = capturedEffects
+      .map(effect => captures.get(currentSymbol.name + "::" + effect))
+      .filter(Boolean);
+
+    const genericRuntimeNames = new Set(["bounce", "pulse", "breathe", "wiggle"]);
+    const extraRuntimeCaptures = capturesForSymbol.filter(capture => !genericRuntimeNames.has(capture.effect));
+
+    for (const capture of extraRuntimeCaptures) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "▶ " + capture.effect.replace(/([A-Z])/g, " $1").replace(/^./, value => value.toUpperCase());
+      button.addEventListener("click", () => playCaptured(capture));
+      animationButtons.appendChild(button);
+    }
+
+    animationSection.hidden = genericEffects.length === 0 && extraRuntimeCaptures.length === 0;
+    captureStatus.textContent = genericEffects.length
+      ? "Efeitos reproduzidos a partir das receitas e metadados recuperados do SF Symbols 27."
+      : "";
+
+    animationDownloadSelect.replaceChildren();
+    for (const capture of capturesForSymbol) {
+      const option = document.createElement("option");
+      option.value = capture.effect;
+      option.textContent = capture.effect.replace(/([A-Z])/g, " $1").replace(/^./, value => value.toUpperCase());
+      animationDownloadSelect.appendChild(option);
+    }
+
+    animationDownloadGroup.hidden = capturesForSymbol.length === 0;
+
+    const updateDownload = () => {
+      const selected = captures.get(currentSymbol.name + "::" + animationDownloadSelect.value);
+      if (!selected?.download) {
+        downloadAnimationButton.removeAttribute("href");
+        downloadAnimationButton.removeAttribute("download");
+        return;
+      }
+      downloadAnimationButton.href = selected.download;
+      downloadAnimationButton.download = currentSymbol.name + "-" + selected.effect + ".zip";
+    };
+
+    animationDownloadSelect.onchange = updateDownload;
+    updateDownload();
   }
 
   function openSymbol(symbol) {
@@ -356,7 +353,6 @@
       downloadButton.textContent = "SVG oficial não recuperado";
     }
 
-    renderAnimationButtons(symbol);
     refreshCaptureControls();
     loadLayeredSvg(symbol);
 
@@ -379,7 +375,6 @@
 
   searchInput.addEventListener("input", applyFilters);
   categorySelect.addEventListener("change", applyFilters);
-  onlyAnimated.addEventListener("change", applyFilters);
   loadMoreButton.addEventListener("click", () => {
     visibleCount += PAGE_SIZE;
     render();
@@ -388,7 +383,6 @@
     stopCapturedPlayback();
     ENGINE.stop();
   });
-  frameFolder.addEventListener("change", () => importCapturedFolder(frameFolder.files));
 
   modal.addEventListener("click", event => {
     if (event.target.hasAttribute("data-close")) {
