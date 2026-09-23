@@ -33,7 +33,8 @@
   const captureStatus = document.getElementById("captureStatus");
   let captureDownload = null;
   const captures = new Map();
-  const bundledCaptureRoot = "assets/captures/bounce/";
+  const bundledCaptureRoot = "assets/captures/";
+  const capturedEffects = ["bounce", "pulse", "breathe"];
   let captureTimer = null;
   let captureUrls = [];
   let captureIndex = 0;
@@ -214,79 +215,68 @@
   }
 
   async function loadBundledCaptures() {
-    let names = ["folder"];
-    try {
-      const response = await fetch(bundledCaptureRoot + "index.json");
-      if (response.ok) {
+    for (const effect of capturedEffects) {
+      const effectRoot = bundledCaptureRoot + effect + "/";
+      let names = [];
+      try {
+        const response = await fetch(effectRoot + "index.json");
+        if (!response.ok) continue;
         const catalog = await response.json();
-        if (Array.isArray(catalog.symbols)) {
-          names = [...new Set([...catalog.symbols, "folder"])];
-        }
-      }
-    } catch (_) { /* Optional capture index not installed. */ }
+        if (Array.isArray(catalog.symbols)) names = catalog.symbols;
+      } catch (_) { continue; }
 
-    for (const name of names) {
-      if (!symbols.some(symbol => symbol.name === name)) continue;
-      const root = bundledCaptureRoot + encodeURIComponent(name) + "/";
-      const legacyRoot = name === "folder" ? bundledCaptureRoot : null;
-      for (const directory of [root, legacyRoot].filter(Boolean)) {
+      for (const name of names) {
+        if (!symbols.some(symbol => symbol.name === name)) continue;
+        const directory = effectRoot + encodeURIComponent(name) + "/";
         try {
           const response = await fetch(directory + "manifest.json");
           if (!response.ok) continue;
           const manifest = await response.json();
           if (manifest.source !== "Apple Symbols.framework" || manifest.symbol !== name ||
-              manifest.effect !== "bounce" || !Number.isInteger(manifest.frames) ||
+              manifest.effect !== effect || !Number.isInteger(manifest.frames) ||
               manifest.frames < 6 || manifest.uniquePixelFrames < 6 ||
               !(Number(manifest.fps) > 0 && Number(manifest.fps) <= 120)) continue;
           const frames = Array.from({ length: manifest.frames }, (_, index) =>
             directory + "frame-" + String(index).padStart(4, "0") + ".png");
-          const [first, last] = await Promise.all([
-            fetch(frames[0], { method: "HEAD" }),
-            fetch(frames[frames.length - 1], { method: "HEAD" })
-          ]);
-          if (!first.ok || !last.ok) continue;
-          captures.set(name, {
-            effect: manifest.effect,
-            fps: Number(manifest.fps),
-            frames,
-            bundled: true,
-            download: bundledCaptureRoot + "downloads/" + encodeURIComponent(name) + "-bounce.zip"
+          const key = name + "::" + effect;
+          captures.set(key, {
+            effect, fps: Number(manifest.fps), frames, bundled: true,
+            download: effectRoot + "downloads/" + encodeURIComponent(name) + "-" + effect + ".zip"
           });
-          if (currentSymbol?.name === name) refreshCaptureControls();
-          break;
-        } catch (_) { /* The optional capture is not installed. */ }
+        } catch (_) { /* Capture absent or invalid. */ }
       }
     }
+    if (currentSymbol) refreshCaptureControls();
   }
-
 
   function refreshCaptureControls() {
     if (!currentSymbol) return;
-    const capture = captures.get(currentSymbol.name);
-    const previous = animationButtons.querySelector("[data-captured]");
-    animationButtons.querySelector("[data-capture-download]")?.remove();
-    previous?.remove();
-    if (!capture) {
-      captureStatus.textContent = "";
-      return;
-    }
-    const button = document.createElement("button");
-    button.type = "button";
-    button.dataset.captured = "true";
-    button.textContent = "▶ Captura Apple: " + capture.effect;
-    button.addEventListener("click", () => playCaptured(capture));
-    animationButtons.prepend(button);
-    if (capture.download) {
+    animationButtons.replaceChildren();
+    const available = capturedEffects
+      .map(effect => captures.get(currentSymbol.name + "::" + effect))
+      .filter(Boolean);
+
+    animationSection.hidden = available.length === 0;
+    captureStatus.textContent = available.length
+      ? available.length + " animação(ões) capturada(s) do runtime Apple"
+      : "Nenhuma animação do runtime Apple capturada para este símbolo.";
+
+    for (const capture of available) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.captured = capture.effect;
+      button.textContent = "▶ " + capture.effect[0].toUpperCase() + capture.effect.slice(1);
+      button.addEventListener("click", () => playCaptured(capture));
+      animationButtons.appendChild(button);
+
       const download = document.createElement("a");
-      download.dataset.captureDownload = "true";
+      download.dataset.captureDownload = capture.effect;
       download.className = "capture-download";
       download.href = capture.download;
-      download.download = currentSymbol.name + "-bounce.zip";
-      download.textContent = "Baixar animação oficial (.zip)";
+      download.download = currentSymbol.name + "-" + capture.effect + ".zip";
+      download.textContent = "Baixar " + capture.effect + " (.zip)";
       animationButtons.appendChild(download);
     }
-    animationSection.hidden = false;
-    captureStatus.textContent = capture.frames.length + " frames do runtime Apple importados";
   }
 
   async function importCapturedFolder(files) {
@@ -323,21 +313,7 @@
 
   function renderAnimationButtons(symbol) {
     animationButtons.replaceChildren();
-
-    const effects = ENGINE.availableEffects(symbol.name, Boolean(symbol.svg));
-    animationSection.hidden = effects.length === 0;
-
-    for (const effect of effects) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.effect = effect.id;
-      button.textContent = effect.label;
-      button.addEventListener("click", () => {
-        stopCapturedPlayback();
-        ENGINE.play(effect.id, symbol.name);
-      });
-      animationButtons.appendChild(button);
-    }
+    animationSection.hidden = true;
   }
 
   function openSymbol(symbol) {
