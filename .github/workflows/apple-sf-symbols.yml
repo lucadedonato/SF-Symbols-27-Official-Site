@@ -45,8 +45,8 @@ jobs:
           import json
           import sys
 
-          root = Path("output/bounce")
-          manifests = sorted(root.glob("*/manifest.json"))
+          root = Path("output")
+          manifests = sorted(root.glob("*/*/manifest.json"))
           if not manifests:
               print("CAPTURE_INVALID: no manifests exported", file=sys.stderr)
               sys.exit(1)
@@ -75,7 +75,7 @@ jobs:
           from pathlib import Path
           import json
           import html
-          root = Path("output/bounce")
+          root = Path("output")
           cards = []
           for manifest_path in sorted(root.glob("*/manifest.json")):
               folder = manifest_path.parent
@@ -103,41 +103,46 @@ jobs:
           from pathlib import Path
           import json, shutil, zipfile
 
-          source = Path("output/bounce")
-          target = Path("../assets/captures/bounce")
+          source = Path("output")
+          target = Path("../assets/captures")
           target.mkdir(parents=True, exist_ok=True)
 
           # Replace only the generated multi-symbol pack, keeping unrelated assets intact.
           valid_symbols = []
-          for manifest_path in sorted(source.glob("*/manifest.json")):
+          for manifest_path in sorted(source.glob("*/*/manifest.json")):
               folder = manifest_path.parent
               manifest = json.loads(manifest_path.read_text())
               frames = sorted(folder.glob("frame-*.png"))
               if (
                   manifest.get("source") == "Apple Symbols.framework"
-                  and manifest.get("effect") == "bounce"
+                  and manifest.get("effect") in {"bounce", "pulse", "breathe"}
                   and manifest.get("uniquePixelFrames", 0) >= 6
                   and len(frames) == manifest.get("frames")
               ):
                   name = manifest["symbol"]
-                  valid_symbols.append(name)
-                  destination = target / name
+                  effect = manifest["effect"]
+                  valid_symbols.append({"symbol": name, "effect": effect})
+                  destination = target / effect / name
                   if destination.exists():
                       shutil.rmtree(destination)
                   shutil.copytree(folder, destination)
 
-                  downloads = target / "downloads"
+                  downloads = target / effect / "downloads"
                   downloads.mkdir(exist_ok=True)
-                  zip_path = downloads / f"{name}-bounce.zip"
+                  zip_path = downloads / f"{name}-{effect}.zip"
                   with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
                       archive.write(destination / "manifest.json", "manifest.json")
                       for frame in sorted(destination.glob("frame-*.png")):
                           archive.write(frame, frame.name)
 
-          (target / "index.json").write_text(
-              json.dumps({"effect": "bounce", "symbols": valid_symbols}, indent=2),
-              encoding="utf-8"
-          )
+          for effect in ("bounce", "pulse", "breathe"):
+              symbols = [x["symbol"] for x in valid_symbols if x["effect"] == effect]
+              effect_dir = target / effect
+              effect_dir.mkdir(parents=True, exist_ok=True)
+              (effect_dir / "index.json").write_text(
+                  json.dumps({"effect": effect, "symbols": symbols}, indent=2),
+                  encoding="utf-8"
+              )
           print(f"Bundled {len(valid_symbols)} validated captures into the site")
           PY
 
@@ -145,17 +150,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/captures/bounce
+          git add assets/captures
           if git diff --cached --quiet; then
             echo "No capture changes to commit"
           else
-            git commit -m "Bundle verified Apple bounce capture pack"
+            git commit -m "Bundle verified Apple animation capture packs"
             git push origin HEAD:main
           fi
 
       - name: Upload exported result
         uses: actions/upload-artifact@v4
         with:
-          name: sf-symbol-official-bounce-pack
+          name: sf-symbol-official-animation-packs
           path: apple-exporter/output/
           if-no-files-found: error
