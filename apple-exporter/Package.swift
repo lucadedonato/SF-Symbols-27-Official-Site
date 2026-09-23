@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "SFExporter",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v26)
     ],
     targets: [
         .executableTarget(
