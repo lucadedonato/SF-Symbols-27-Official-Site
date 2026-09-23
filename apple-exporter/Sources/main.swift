@@ -13,6 +13,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
     private var imageView: NSImageView!
     private var displayLink: CADisplayLink?
     private var frameIndex = 0
+    private var frameFingerprints = Set<Data>()
     private var outputDirectory: URL!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -58,7 +59,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         host.addSubview(imageView)
 
         // Symbol effects only advance while the view participates in a real window render tree.
-        window.orderBack(nil)
+        window.makeKeyAndOrderFront(nil)
         window.displayIfNeeded()
 
         // Apple's Symbols.framework executes the effect. We do not synthesize keyframes.
@@ -83,8 +84,12 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Ask AppKit to draw the view at the current presentation time.
+        // Render the effect's current layer contents, as updated by Apple's runtime.
         imageView.displayIfNeeded()
+        guard let layer = imageView.layer else {
+            fail("NSImageView has no backing layer")
+            return
+        }
 
         let width = Int(canvasSize.width)
         let height = Int(canvasSize.height)
@@ -103,11 +108,10 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         }
 
         context.clear(CGRect(origin: .zero, size: canvasSize))
-        let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = graphicsContext
-        imageView.displayIgnoringOpacity(imageView.bounds, in: graphicsContext)
-        NSGraphicsContext.restoreGraphicsState()
+        layer.render(in: context)
+        if let rawPixels = context.data {
+            frameFingerprints.insert(Data(bytes: rawPixels, count: context.bytesPerRow * height))
+        }
 
         guard let cgImage = context.makeImage() else {
             fail("Could not create CGImage frame")
@@ -132,11 +136,19 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
     }
 
     private func finish(totalFrames: Int) {
+        let uniqueFrames = frameFingerprints.count
+        print("Distinct pixel frames: \(uniqueFrames) / \(frameIndex)")
+        guard uniqueFrames >= 6 else {
+            fail("CAPTURE_INVALID: too few distinct pixel frames to establish a captured animation")
+            return
+        }
+
         let manifest: [String: Any] = [
             "source": "Apple Symbols.framework",
             "symbol": symbolName,
             "effect": "bounce",
             "frames": totalFrames,
+            "uniquePixelFrames": uniqueFrames,
             "fps": frameRate,
             "durationSeconds": captureDuration,
             "canvas": ["width": Int(canvasSize.width), "height": Int(canvasSize.height)],
@@ -175,5 +187,5 @@ private extension FileManager {
 let app = NSApplication.shared
 let delegate = CaptureApp()
 app.delegate = delegate
-app.setActivationPolicy(.prohibited)
+app.setActivationPolicy(.regular)
 app.run()
