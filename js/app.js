@@ -13,6 +13,8 @@
 
   const searchInput = document.getElementById("search");
   const categorySelect = document.getElementById("category");
+  const onlyAnimated = document.getElementById("onlyAnimated");
+  const animationCounter = document.getElementById("animationCounter");
   const grid = document.getElementById("grid");
   const counter = document.getElementById("counter");
   const loadMoreButton = document.getElementById("loadMore");
@@ -78,10 +80,8 @@
     const category = categorySelect.value;
 
     filtered = symbols.filter(symbol => {
-      if (category && !(symbol.categories || []).includes(category)) {
-        return false;
-      }
-
+      if (category && !(symbol.categories || []).includes(category)) return false;
+      if (onlyAnimated.checked && !capturedEffects.some(effect => captures.has(symbol.name + "::" + effect))) return false;
       return !query || searchableText(symbol).includes(query);
     });
 
@@ -246,7 +246,10 @@
         } catch (_) { /* Capture absent or invalid. */ }
       }
     }
+    const animatedSymbols = new Set(Array.from(captures.keys()).map(key => key.split("::")[0]));
+    animationCounter.textContent = animatedSymbols.size.toLocaleString("pt-BR") + " símbolos com animação verificada";
     if (currentSymbol) refreshCaptureControls();
+    if (onlyAnimated.checked) applyFilters();
   }
 
   function refreshCaptureControls() {
@@ -376,6 +379,7 @@
 
   searchInput.addEventListener("input", applyFilters);
   categorySelect.addEventListener("change", applyFilters);
+  onlyAnimated.addEventListener("change", applyFilters);
   loadMoreButton.addEventListener("click", () => {
     visibleCount += PAGE_SIZE;
     render();
