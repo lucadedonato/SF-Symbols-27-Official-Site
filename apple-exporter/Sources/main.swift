@@ -6,6 +6,8 @@ import Symbols
 final class CaptureApp: NSObject, NSApplicationDelegate {
     private let frameRate = 60.0
     private let captureDuration = 1.5
+    private enum EffectKind: String, CaseIterable { case bounce, pulse, breathe }
+    private let effectsToExport = EffectKind.allCases
     private let symbolsToExport = [
         "folder",
         "folder.fill",
@@ -34,19 +36,27 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
     private var frameFingerprints = Set<Data>()
     private var outputDirectory: URL!
     private var currentSymbolIndex = 0
+    private var currentEffectIndex = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         startCurrentSymbol()
     }
 
     private func startCurrentSymbol() {
-        guard currentSymbolIndex < symbolsToExport.count else {
+        guard currentEffectIndex < effectsToExport.count else {
             print("ALL_EXPORTS_COMPLETE")
             NSApp.terminate(nil)
             return
         }
+        if currentSymbolIndex >= symbolsToExport.count {
+            currentSymbolIndex = 0
+            currentEffectIndex += 1
+            startCurrentSymbol()
+            return
+        }
 
         let symbolName = symbolsToExport[currentSymbolIndex]
+        let effect = effectsToExport[currentEffectIndex]
         guard let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: symbolName) else {
             print("SKIP: Symbol unavailable in macOS system catalog: \(symbolName)")
             currentSymbolIndex += 1
@@ -56,7 +66,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
 
         outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("output", isDirectory: true)
-            .appendingPathComponent("bounce", isDirectory: true)
+            .appendingPathComponent(effect.rawValue, isDirectory: true)
             .appendingPathComponent(symbolName, isDirectory: true)
 
         do {
@@ -100,7 +110,14 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
 
         // Apple's Symbols.framework executes the effect. We do not synthesize keyframes.
         imageView.removeAllSymbolEffects()
-        imageView.addSymbolEffect(.bounce, options: .nonRepeating)
+        switch effect {
+        case .bounce:
+            imageView.addSymbolEffect(.bounce, options: .nonRepeating)
+        case .pulse:
+            imageView.addSymbolEffect(.pulse, options: .nonRepeating)
+        case .breathe:
+            imageView.addSymbolEffect(.breathe, options: .nonRepeating)
+        }
 
         // Capture on the actual display refresh, as recommended for AppKit drawing.
         let link = imageView.displayLink(target: self, selector: #selector(captureTick(_:)))
@@ -174,6 +191,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
 
     private func finish(totalFrames: Int) {
         let symbolName = symbolsToExport[currentSymbolIndex]
+        let effect = effectsToExport[currentEffectIndex]
         let uniqueFrames = frameFingerprints.count
         print("Distinct pixel frames for \(symbolName): \(uniqueFrames) / \(frameIndex)")
         guard uniqueFrames >= 6 else {
@@ -186,7 +204,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         let manifest: [String: Any] = [
             "source": "Apple Symbols.framework",
             "symbol": symbolName,
-            "effect": "bounce",
+            "effect": effect.rawValue,
             "frames": totalFrames,
             "uniquePixelFrames": uniqueFrames,
             "fps": frameRate,
@@ -200,7 +218,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
             try data.write(to: outputDirectory.appendingPathComponent("manifest.json"))
             print("SUCCESS")
             print("Symbol: \(symbolName)")
-            print("Effect: bounce")
+            print("Effect: \(effect.rawValue)")
             print("Captured frames: \(frameIndex)")
             print("Output: \(outputDirectory.path)")
             currentSymbolIndex += 1
