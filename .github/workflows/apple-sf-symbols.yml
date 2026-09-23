@@ -28,12 +28,46 @@ jobs:
           sw_vers
           swift --version
 
+      - name: Select next catalog batch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          raw = Path("data/catalog.js").read_text(encoding="utf-8")
+          prefix = "window.SF_CATALOG="
+          if not raw.startswith(prefix):
+              raise SystemExit("catalog.js format not recognized")
+          catalog = json.loads(raw[len(prefix):].rstrip().rstrip(";"))
+          names = [item["name"] for item in catalog["symbols"]]
+
+          attempted_path = Path("assets/captures/attempted-symbols.json")
+          attempted = set()
+          if attempted_path.exists():
+              attempted = set(json.loads(attempted_path.read_text(encoding="utf-8")).get("symbols", []))
+
+          batch_size = 40
+          batch = [name for name in names if name not in attempted][:batch_size]
+          if not batch:
+              raise SystemExit("ALL_CATALOG_SYMBOLS_ATTEMPTED")
+
+          Path("apple-exporter/symbols.txt").write_text("\n".join(batch) + "\n", encoding="utf-8")
+          Path("apple-exporter/batch-symbols.json").write_text(
+              json.dumps({"symbols": batch}, indent=2), encoding="utf-8"
+          )
+          print(f"BATCH_SELECTED: {len(batch)} symbols")
+          print("FIRST:", batch[0])
+          print("LAST:", batch[-1])
+          PY
+
       - name: Build exporter
         working-directory: apple-exporter
         run: swift build -c release
 
       - name: Run exporter
         working-directory: apple-exporter
+        env:
+          SF_SYMBOLS_FILE: symbols.txt
         run: .build/release/SFExporter
 
       - name: Verify captured frames are not identical
@@ -77,18 +111,18 @@ jobs:
           import html
           root = Path("output")
           cards = []
-          for manifest_path in sorted(root.glob("*/manifest.json")):
+          for manifest_path in sorted(root.glob("*/*/manifest.json")):
               folder = manifest_path.parent
               data = json.loads(manifest_path.read_text())
               files = sorted(p.name for p in folder.glob("frame-*.png"))
-              cards.append({"symbol": data["symbol"], "fps": data["fps"], "folder": folder.name, "frames": files})
+              cards.append({"symbol": data["symbol"], "effect": data["effect"], "fps": data["fps"], "folder": str(folder.relative_to(root)).replace("\\", "/"), "frames": files})
           page = """<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
           <title>Apple runtime capture preview</title><style>body{font:16px system-ui;padding:24px;background:#f5f5f7;color:#1d1d1f}
           .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}.card{background:white;padding:18px;border-radius:20px;text-align:center}
           img{width:220px;height:220px;object-fit:contain}button{padding:9px 16px;border:0;border-radius:22px;cursor:pointer}</style>
           <h1>Capturas do runtime Apple</h1><div class="grid" id="grid"></div>
           <script>const items=ITEMS;const grid=document.getElementById('grid');for(const item of items){let i=0,playing=true;const card=document.createElement('div');card.className='card';
-          const h=document.createElement('h2');h.textContent=item.symbol;const img=document.createElement('img');const b=document.createElement('button');b.textContent='Pausar';
+          const h=document.createElement('h2');h.textContent=item.symbol+' · '+item.effect;const img=document.createElement('img');const b=document.createElement('button');b.textContent='Pausar';
           card.append(h,img,b);grid.append(card);const tick=()=>{if(!playing)return;img.src=item.folder+'/'+item.frames[i];i=(i+1)%item.frames.length};tick();setInterval(tick,1000/item.fps);
           b.onclick=()=>{playing=!playing;b.textContent=playing?'Pausar':'Reproduzir'}};</script></html>"""
           page = page.replace("ITEMS", json.dumps(cards))
@@ -136,14 +170,31 @@ jobs:
                           archive.write(frame, frame.name)
 
           for effect in ("bounce", "pulse", "breathe", "wiggle", "rotate", "drawOn", "drawOff"):
-              symbols = [x["symbol"] for x in valid_symbols if x["effect"] == effect]
+              new_symbols = [x["symbol"] for x in valid_symbols if x["effect"] == effect]
               effect_dir = target / effect
               effect_dir.mkdir(parents=True, exist_ok=True)
-              (effect_dir / "index.json").write_text(
+              index_path = effect_dir / "index.json"
+              existing = []
+              if index_path.exists():
+                  existing = json.loads(index_path.read_text(encoding="utf-8")).get("symbols", [])
+              symbols = sorted(set(existing) | set(new_symbols))
+              index_path.write_text(
                   json.dumps({"effect": effect, "symbols": symbols}, indent=2),
                   encoding="utf-8"
               )
+
+          attempted_path = target / "attempted-symbols.json"
+          attempted = set()
+          if attempted_path.exists():
+              attempted = set(json.loads(attempted_path.read_text(encoding="utf-8")).get("symbols", []))
+          batch = json.loads(Path("batch-symbols.json").read_text(encoding="utf-8"))["symbols"]
+          attempted.update(batch)
+          attempted_path.write_text(
+              json.dumps({"symbols": sorted(attempted), "count": len(attempted)}, indent=2),
+              encoding="utf-8"
+          )
           print(f"Bundled {len(valid_symbols)} validated captures into the site")
+          print(f"CATALOG_PROGRESS: {len(attempted)} / 7936 symbols attempted")
           PY
 
       - name: Commit bundled captures
