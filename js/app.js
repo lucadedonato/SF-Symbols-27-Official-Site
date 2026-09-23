@@ -303,10 +303,12 @@
       captureStatus.textContent = "Captura incompatível ou não validada. Nenhuma animação importada.";
       return;
     }
-    const old = captures.get(symbol.name);
+    const effect = String(manifest.effect);
+    const key = symbol.name + "::" + effect;
+    const old = captures.get(key);
     if (old && !old.bundled) old.frames.forEach(url => URL.revokeObjectURL(url));
     const frames = pngFiles.map(file => URL.createObjectURL(file));
-    captures.set(symbol.name, { effect: String(manifest.effect), fps: Number(manifest.fps), frames });
+    captures.set(key, { effect, fps: Number(manifest.fps), frames, bundled: false });
     if (currentSymbol?.name === symbol.name) refreshCaptureControls();
     captureStatus.textContent = "Captura importada: " + symbol.name + " / " + manifest.effect;
   }
