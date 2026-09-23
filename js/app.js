@@ -245,7 +245,7 @@
       return;
     }
     const symbol = symbols.find(item => item.name === manifest.symbol);
-    const pngFiles = selected.filter(file => /^frame-\\d+\\.png$/i.test(file.name))
+    const pngFiles = selected.filter(file => /^frame-\d+\.png$/i.test(file.name))
       .sort((a, b) => a.name.localeCompare(b.name));
     if (!symbol || manifest.source !== "Apple Symbols.framework" ||
         !Number.isInteger(manifest.frames) || pngFiles.length !== manifest.frames ||
@@ -282,6 +282,7 @@
   }
 
   function openSymbol(symbol) {
+    stopCapturedPlayback();
     ENGINE.stop();
     currentSymbol = symbol;
 
