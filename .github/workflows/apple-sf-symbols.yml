@@ -3,6 +3,9 @@ name: Apple SF Symbols Export
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   export:
     runs-on: macos-26
@@ -92,6 +95,63 @@ jobs:
           (root / "preview.html").write_text(page, encoding="utf-8")
           print(f"Preview created for {len(cards)} captures")
           PY
+
+      - name: Bundle validated captures into site
+        working-directory: apple-exporter
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, shutil, zipfile
+
+          source = Path("output/bounce")
+          target = Path("../assets/captures/bounce")
+          target.mkdir(parents=True, exist_ok=True)
+
+          # Replace only the generated multi-symbol pack, keeping unrelated assets intact.
+          valid_symbols = []
+          for manifest_path in sorted(source.glob("*/manifest.json")):
+              folder = manifest_path.parent
+              manifest = json.loads(manifest_path.read_text())
+              frames = sorted(folder.glob("frame-*.png"))
+              if (
+                  manifest.get("source") == "Apple Symbols.framework"
+                  and manifest.get("effect") == "bounce"
+                  and manifest.get("uniquePixelFrames", 0) >= 6
+                  and len(frames) == manifest.get("frames")
+              ):
+                  name = manifest["symbol"]
+                  valid_symbols.append(name)
+                  destination = target / name
+                  if destination.exists():
+                      shutil.rmtree(destination)
+                  shutil.copytree(folder, destination)
+
+                  downloads = target / "downloads"
+                  downloads.mkdir(exist_ok=True)
+                  zip_path = downloads / f"{name}-bounce.zip"
+                  with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
+                      archive.write(destination / "manifest.json", "manifest.json")
+                      for frame in sorted(destination.glob("frame-*.png")):
+                          archive.write(frame, frame.name)
+
+          (target / "index.json").write_text(
+              json.dumps({"effect": "bounce", "symbols": valid_symbols}, indent=2),
+              encoding="utf-8"
+          )
+          print(f"Bundled {len(valid_symbols)} validated captures into the site")
+          PY
+
+      - name: Commit bundled captures
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/captures/bounce
+          if git diff --cached --quiet; then
+            echo "No capture changes to commit"
+          else
+            git commit -m "Bundle verified Apple bounce capture pack"
+            git push origin HEAD:main
+          fi
 
       - name: Upload exported result
         uses: actions/upload-artifact@v4
