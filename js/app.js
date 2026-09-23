@@ -32,6 +32,7 @@
   const capturedFrame = document.getElementById("capturedFrame");
   const captureStatus = document.getElementById("captureStatus");
   const captures = new Map();
+  const bundledCaptureRoot = "assets/captures/bounce/";
   let captureTimer = null;
   let captureUrls = [];
   let captureIndex = 0;
@@ -211,6 +212,27 @@
     captureTimer = setInterval(tick, 1000 / capture.fps);
   }
 
+  async function loadBundledBounce() {
+    try {
+      const response = await fetch(bundledCaptureRoot + "manifest.json");
+      if (!response.ok) return;
+      const manifest = await response.json();
+      if (manifest.source !== "Apple Symbols.framework" || manifest.symbol !== "folder" ||
+          manifest.effect !== "bounce" || !Number.isInteger(manifest.frames) ||
+          manifest.frames < 6 || manifest.uniquePixelFrames < 6 ||
+          !(Number(manifest.fps) > 0 && Number(manifest.fps) <= 120)) return;
+      const frames = Array.from({ length: manifest.frames }, (_, index) =>
+        bundledCaptureRoot + "frame-" + String(index).padStart(4, "0") + ".png");
+      const first = await fetch(frames[0], { method: "HEAD" });
+      const last = await fetch(frames[frames.length - 1], { method: "HEAD" });
+      if (!first.ok || !last.ok) return;
+      captures.set(manifest.symbol, {
+        effect: manifest.effect, fps: Number(manifest.fps), frames, bundled: true
+      });
+      if (currentSymbol?.name === manifest.symbol) refreshCaptureControls();
+    } catch (_) { /* Optional local asset pack is not installed. */ }
+  }
+
   function refreshCaptureControls() {
     if (!currentSymbol) return;
     const capture = captures.get(currentSymbol.name);
@@ -255,7 +277,7 @@
       return;
     }
     const old = captures.get(symbol.name);
-    if (old) old.frames.forEach(url => URL.revokeObjectURL(url));
+    if (old && !old.bundled) old.frames.forEach(url => URL.revokeObjectURL(url));
     const frames = pngFiles.map(file => URL.createObjectURL(file));
     captures.set(symbol.name, { effect: String(manifest.effect), fps: Number(manifest.fps), frames });
     if (currentSymbol?.name === symbol.name) refreshCaptureControls();
@@ -363,4 +385,5 @@
 
   populateCategories();
   render();
+  loadBundledBounce();
 })();
