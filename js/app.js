@@ -39,6 +39,7 @@
   let captureTimer = null;
   let captureUrls = [];
   let captureIndex = 0;
+  let fullAnimationDataLoaded = false;
 
   let filtered = symbols;
   let visibleCount = PAGE_SIZE;
@@ -214,6 +215,19 @@
     };
     tick();
     captureTimer = setInterval(tick, 1000 / capture.fps);
+  }
+
+  async function loadFullAnimationData() {
+    try {
+      const response = await fetch("data/full-animation-data.json");
+      if (!response.ok) return false;
+      const data = await response.json();
+      fullAnimationDataLoaded = ENGINE.setFullData?.(data) === true;
+      if (fullAnimationDataLoaded && currentSymbol) refreshCaptureControls();
+      return fullAnimationDataLoaded;
+    } catch (_) {
+      return false;
+    }
   }
 
   async function loadBundledCaptures() {
@@ -399,4 +413,5 @@
   populateCategories();
   render();
   loadBundledCaptures();
+  loadFullAnimationData();
 })();
