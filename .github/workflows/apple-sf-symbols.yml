@@ -153,7 +153,7 @@ jobs:
               frames = sorted(folder.glob("frame-*.png"))
               if (
                   manifest.get("source") == "Apple Symbols.framework"
-                  and manifest.get("effect") in {"bounce", "pulse", "breathe", "wiggle", "rotate", "drawOn", "drawOff"}
+                  and manifest.get("effect") in {"appear", "bounce", "disappear", "pulse", "scale", "variableColor", "breathe", "wiggle", "rotate", "drawOn", "drawOff"}
                   and manifest.get("uniquePixelFrames", 0) >= 6
                   and len(frames) == manifest.get("frames")
               ):
@@ -173,7 +173,7 @@ jobs:
                       for frame in sorted(destination.glob("frame-*.png")):
                           archive.write(frame, frame.name)
 
-          for effect in ("bounce", "pulse", "breathe", "wiggle", "rotate", "drawOn", "drawOff"):
+          for effect in ("appear", "bounce", "disappear", "pulse", "scale", "variableColor", "breathe", "wiggle", "rotate", "drawOn", "drawOff"):
               new_symbols = [x["symbol"] for x in valid_symbols if x["effect"] == effect]
               effect_dir = target / effect
               effect_dir.mkdir(parents=True, exist_ok=True)
