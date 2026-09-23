@@ -12,7 +12,7 @@
       <div class="brand-title">SF Symbols 27</div>
       <div class="brand-subtitle">Official Apple assets recovered from the SF Symbols 27 package</div>
     </div>
-    <div class="header-stats"><div id="counter" class="counter" aria-live="polite"></div><div id="animationCounter" class="counter" aria-live="polite"></div></div>
+    <div id="counter" class="counter" aria-live="polite"></div>
   </header>
 
   <main>
@@ -21,8 +21,6 @@
       <select id="category" aria-label="Categoria">
         <option value="">Todas as categorias</option>
       </select>
-      <label class="import-frames" for="frameFolder">Importar captura oficial<input id="frameFolder" type="file" webkitdirectory multiple accept=".png,.json" hidden></label>
-      <label class="onlyAnimated"><input id="onlyAnimated" type="checkbox"> Somente com animação oficial</label>
     </section>
 
     <section id="grid" class="symbol-grid" aria-label="Catálogo de símbolos"></section>
@@ -59,6 +57,10 @@
 
       <div class="modal-actions">
         <a id="downloadButton" class="download-button" download>Baixar SVG oficial</a>
+        <div id="animationDownloadGroup" class="animation-download-group" hidden>
+          <select id="animationDownloadSelect" aria-label="Escolher animação oficial"></select>
+          <a id="downloadAnimationButton" class="download-animation-button" download>Baixar animação</a>
+        </div>
       </div>
     </article>
   </div>
