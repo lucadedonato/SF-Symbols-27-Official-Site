@@ -5,8 +5,20 @@ import Symbols
 @MainActor
 final class CaptureApp: NSObject, NSApplicationDelegate {
     private let frameRate = 60.0
-    private let captureDuration = 1.5
-    private enum EffectKind: String, CaseIterable { case bounce, pulse, breathe, wiggle, rotate, drawOn, drawOff }
+    private enum EffectKind: String, CaseIterable {
+        case bounce, pulse, breathe, wiggle, rotate, drawOn, drawOff
+
+        var captureDuration: Double {
+            switch self {
+            case .bounce: return 1.0
+            case .pulse: return 2.25
+            case .breathe: return 3.25
+            case .wiggle: return 1.5
+            case .rotate: return 2.0
+            case .drawOn, .drawOff: return 2.0
+            }
+        }
+    }
     private let effectsToExport = EffectKind.allCases
     private lazy var symbolsToExport: [String] = {
         let environment = ProcessInfo.processInfo.environment
@@ -133,7 +145,8 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
     }
 
     private func captureFrame() {
-        let totalFrames = Int(ceil(captureDuration * frameRate))
+        let effect = effectsToExport[currentEffectIndex]
+        let totalFrames = Int(ceil(effect.captureDuration * frameRate))
         if frameIndex >= totalFrames {
             displayLink?.invalidate()
             displayLink = nil
@@ -211,7 +224,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
             "frames": totalFrames,
             "uniquePixelFrames": uniqueFrames,
             "fps": frameRate,
-            "durationSeconds": captureDuration,
+            "durationSeconds": effect.captureDuration,
             "canvas": ["width": Int(canvasSize.width), "height": Int(canvasSize.height)],
             "note": "Frames captured from the macOS Symbols.framework effect; no reconstructed CSS/keyframe animation."
         ]
