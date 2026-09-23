@@ -21,6 +21,7 @@
       <select id="category" aria-label="Categoria">
         <option value="">Todas as categorias</option>
       </select>
+      <label class="import-frames" for="frameFolder">Importar captura oficial<input id="frameFolder" type="file" webkitdirectory multiple accept=".png,.json" hidden></label>
     </section>
 
     <section id="grid" class="symbol-grid" aria-label="Catálogo de símbolos"></section>
@@ -38,6 +39,7 @@
       <div class="modal-preview" id="modalPreview">
         <img id="modalImage" alt="">
         <div id="modalLayered" hidden aria-hidden="true"></div>
+        <img id="capturedFrame" alt="Frame capturado pelo runtime da Apple" hidden>
         <div id="missingPreview" class="missing-preview" hidden>
           <span>SVG oficial não recuperado</span>
         </div>
@@ -51,6 +53,7 @@
         <div id="animationTitle" class="animation-title">Animações oficiais verificadas</div>
         <div id="animationButtons" class="animation-buttons"></div>
         <button id="stopAnimation" class="stop-animation" type="button">Stop</button>
+        <div id="captureStatus" class="capture-status" aria-live="polite"></div>
       </section>
 
       <div class="modal-actions">
