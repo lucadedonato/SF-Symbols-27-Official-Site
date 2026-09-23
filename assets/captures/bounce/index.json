@@ -1,0 +1,20 @@
+{
+  "effect": "bounce",
+  "symbols": [
+    "arrow.forward.folder",
+    "arrow.forward.folder.fill",
+    "folder",
+    "folder.badge.minus",
+    "folder.badge.person.crop",
+    "folder.badge.plus",
+    "folder.circle",
+    "folder.circle.fill",
+    "folder.fill",
+    "folder.fill.badge.minus",
+    "folder.fill.badge.person.crop",
+    "folder.fill.badge.plus",
+    "plus.rectangle.on.folder",
+    "plus.rectangle.on.folder.fill",
+    "questionmark.folder"
+  ]
+}
