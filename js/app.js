@@ -212,26 +212,36 @@
     captureTimer = setInterval(tick, 1000 / capture.fps);
   }
 
-  async function loadBundledBounce() {
-    try {
-      const response = await fetch(bundledCaptureRoot + "manifest.json");
-      if (!response.ok) return;
-      const manifest = await response.json();
-      if (manifest.source !== "Apple Symbols.framework" || manifest.symbol !== "folder" ||
-          manifest.effect !== "bounce" || !Number.isInteger(manifest.frames) ||
-          manifest.frames < 6 || manifest.uniquePixelFrames < 6 ||
-          !(Number(manifest.fps) > 0 && Number(manifest.fps) <= 120)) return;
-      const frames = Array.from({ length: manifest.frames }, (_, index) =>
-        bundledCaptureRoot + "frame-" + String(index).padStart(4, "0") + ".png");
-      const first = await fetch(frames[0], { method: "HEAD" });
-      const last = await fetch(frames[frames.length - 1], { method: "HEAD" });
-      if (!first.ok || !last.ok) return;
-      captures.set(manifest.symbol, {
-        effect: manifest.effect, fps: Number(manifest.fps), frames, bundled: true
-      });
-      if (currentSymbol?.name === manifest.symbol) refreshCaptureControls();
-    } catch (_) { /* Optional local asset pack is not installed. */ }
+  async function loadBundledCaptures() {
+    for (const symbol of symbols) {
+      const root = bundledCaptureRoot + encodeURIComponent(symbol.name) + "/";
+      const legacyRoot = symbol.name === "folder" ? bundledCaptureRoot : null;
+      for (const directory of [root, legacyRoot].filter(Boolean)) {
+        try {
+          const response = await fetch(directory + "manifest.json");
+          if (!response.ok) continue;
+          const manifest = await response.json();
+          if (manifest.source !== "Apple Symbols.framework" || manifest.symbol !== symbol.name ||
+              manifest.effect !== "bounce" || !Number.isInteger(manifest.frames) ||
+              manifest.frames < 6 || manifest.uniquePixelFrames < 6 ||
+              !(Number(manifest.fps) > 0 && Number(manifest.fps) <= 120)) continue;
+          const frames = Array.from({ length: manifest.frames }, (_, index) =>
+            directory + "frame-" + String(index).padStart(4, "0") + ".png");
+          const [first, last] = await Promise.all([
+            fetch(frames[0], { method: "HEAD" }),
+            fetch(frames[frames.length - 1], { method: "HEAD" })
+          ]);
+          if (!first.ok || !last.ok) continue;
+          captures.set(symbol.name, {
+            effect: manifest.effect, fps: Number(manifest.fps), frames, bundled: true
+          });
+          if (currentSymbol?.name === symbol.name) refreshCaptureControls();
+          break;
+        } catch (_) { /* The optional capture is not installed. */ }
+      }
+    }
   }
+
 
   function refreshCaptureControls() {
     if (!currentSymbol) return;
@@ -385,5 +395,5 @@
 
   populateCategories();
   render();
-  loadBundledBounce();
+  loadBundledCaptures();
 })();
