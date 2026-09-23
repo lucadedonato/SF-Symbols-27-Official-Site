@@ -6,12 +6,13 @@ import Symbols
 final class CaptureApp: NSObject, NSApplicationDelegate {
     private let frameRate = 60.0
     private enum EffectKind: String, CaseIterable {
-        case bounce, pulse, breathe, wiggle, rotate, drawOn, drawOff
+        case appear, bounce, disappear, pulse, scale, variableColor, breathe, wiggle, rotate, drawOn, drawOff
 
         var captureDuration: Double {
             switch self {
+            case .appear, .disappear, .scale: return 1.5
             case .bounce: return 1.0
-            case .pulse: return 2.25
+            case .pulse, .variableColor: return 2.25
             case .breathe: return 3.25
             case .wiggle: return 1.5
             case .rotate: return 2.0
@@ -118,10 +119,18 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         // Apple's Symbols.framework executes the effect. We do not synthesize keyframes.
         imageView.removeAllSymbolEffects()
         switch effect {
+        case .appear:
+            imageView.addSymbolEffect(.appear, options: .nonRepeating)
         case .bounce:
             imageView.addSymbolEffect(.bounce, options: .nonRepeating)
+        case .disappear:
+            imageView.addSymbolEffect(.disappear, options: .nonRepeating)
         case .pulse:
             imageView.addSymbolEffect(.pulse, options: .nonRepeating)
+        case .scale:
+            imageView.addSymbolEffect(.scale, options: .nonRepeating)
+        case .variableColor:
+            imageView.addSymbolEffect(.variableColor, options: .nonRepeating)
         case .breathe:
             imageView.addSymbolEffect(.breathe, options: .nonRepeating)
         case .wiggle:
