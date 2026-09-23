@@ -30,7 +30,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 main { max-width: 1500px; margin: 0 auto; padding: 24px 28px 44px; }
 .controls {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(190px, 320px);
+  grid-template-columns: minmax(220px, 1fr) minmax(190px, 320px) auto;
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -146,3 +146,11 @@ main { max-width: 1500px; margin: 0 auto; padding: 24px 28px 44px; }
   .symbol-preview { height: 104px; }
   .modal-card { padding: 22px 16px; }
 }
+
+.import-frames { display: inline-flex; align-items: center; justify-content: center; padding: 0 16px; min-height: 44px; border-radius: 12px; background: #1d1d1f; color: white; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.import-frames:hover { background: #424245; }
+.capture-status { margin-top: 10px; font-size: 12px; color: #6e6e73; }
+#capturedFrame { width: 150px; height: 150px; object-fit: contain; }
+#capturedFrame[hidden] { display: none !important; }
+.modal-preview.captured-active #modalImage, .modal-preview.captured-active #modalLayered { display: none !important; }
+@media (max-width: 700px) { .import-frames { width: 100%; } }
