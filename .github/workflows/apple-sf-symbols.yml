@@ -1,4 +1,4 @@
-﻿name: Apple SF Symbols Export
+name: Apple SF Symbols Export
 
 on:
   workflow_dispatch:
@@ -10,6 +10,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Show checked out commit
+        run: |
+          git log -1 --oneline
+          printf 'Package.swift first bytes: '
+          xxd -l 8 apple-exporter/Package.swift || true
+          head -n 1 apple-exporter/Package.swift
 
       - name: Show macOS and Swift versions
         run: |
