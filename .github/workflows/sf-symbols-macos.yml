@@ -1,0 +1,92 @@
+name: Test official SF Symbols on macOS
+
+on:
+  push:
+    branches:
+      - sf-symbols-macos-test
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-sf-symbols:
+    runs-on: macos-26
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Show macOS version
+        run: |
+          sw_vers
+          uname -m
+
+      - name: Download official SF Symbols DMG from Apple
+        run: |
+          curl --fail --location --retry 3 \
+            "https://devimages-cdn.apple.com/design/resources/download/SF-Symbols-27.dmg?2=" \
+            --output "$RUNNER_TEMP/SF-Symbols-27.dmg"
+          ls -lh "$RUNNER_TEMP/SF-Symbols-27.dmg"
+
+      - name: Mount DMG and install SF Symbols
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MOUNT_POINT="$(hdiutil attach "$RUNNER_TEMP/SF-Symbols-27.dmg" -nobrowse | sed -n 's|^.*\(/Volumes/.*\)$|\1|p' | tail -n 1)"
+
+          if [ -z "$MOUNT_POINT" ]; then
+            echo "Could not determine DMG mount point."
+            exit 1
+          fi
+
+          echo "Mounted at: $MOUNT_POINT"
+
+          APP_PATH="$(find "$MOUNT_POINT" -maxdepth 2 -type d -name "SF Symbols.app" -print -quit)"
+
+          if [ -z "$APP_PATH" ]; then
+            echo "SF Symbols.app was not found in the DMG."
+            find "$MOUNT_POINT" -maxdepth 2 -print
+            exit 1
+          fi
+
+          echo "Found app: $APP_PATH"
+          sudo rm -rf "/Applications/SF Symbols.app"
+          sudo ditto "$APP_PATH" "/Applications/SF Symbols.app"
+
+          hdiutil detach "$MOUNT_POINT"
+
+      - name: Verify Apple app signature and version
+        run: |
+          codesign --verify --deep --strict --verbose=2 "/Applications/SF Symbols.app"
+          echo "SF Symbols version:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "/Applications/SF Symbols.app/Contents/Info.plist" || true
+          echo "Bundle identifier:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "/Applications/SF Symbols.app/Contents/Info.plist" || true
+
+      - name: Launch the official SF Symbols app
+        run: |
+          open "/Applications/SF Symbols.app"
+          sleep 8
+          osascript -e 'tell application "SF Symbols" to activate' || true
+          sleep 4
+
+          echo "Running process:"
+          pgrep -fl "SF Symbols" || true
+
+          echo "Frontmost application:"
+          osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' || true
+
+      - name: Capture the macOS desktop
+        run: |
+          screencapture -x "$GITHUB_WORKSPACE/sf-symbols-running.png" || true
+          ls -lh "$GITHUB_WORKSPACE/sf-symbols-running.png" || true
+
+      - name: Upload proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: sf-symbols-macos-proof
+          path: sf-symbols-running.png
+          if-no-files-found: warn
