@@ -30,7 +30,7 @@ jobs:
             --output "$RUNNER_TEMP/SF-Symbols-27.dmg"
           ls -lh "$RUNNER_TEMP/SF-Symbols-27.dmg"
 
-      - name: Mount DMG and install SF Symbols
+      - name: Mount DMG and install SF Symbols package
         shell: bash
         run: |
           set -euo pipefail
@@ -43,20 +43,25 @@ jobs:
           fi
 
           echo "Mounted at: $MOUNT_POINT"
+          find "$MOUNT_POINT" -maxdepth 2 -print
 
-          APP_PATH="$(find "$MOUNT_POINT" -maxdepth 2 -type d -name "SF Symbols.app" -print -quit)"
+          PKG_PATH="$(find "$MOUNT_POINT" -maxdepth 2 -type f -name "*.pkg" -print -quit)"
 
-          if [ -z "$APP_PATH" ]; then
-            echo "SF Symbols.app was not found in the DMG."
-            find "$MOUNT_POINT" -maxdepth 2 -print
+          if [ -z "$PKG_PATH" ]; then
+            echo "No PKG installer was found in the DMG."
             exit 1
           fi
 
-          echo "Found app: $APP_PATH"
-          sudo rm -rf "/Applications/SF Symbols.app"
-          sudo ditto "$APP_PATH" "/Applications/SF Symbols.app"
+          echo "Installing package: $PKG_PATH"
+          sudo installer -pkg "$PKG_PATH" -target /
 
           hdiutil detach "$MOUNT_POINT"
+
+          if [ ! -d "/Applications/SF Symbols.app" ]; then
+            echo "Installer completed, but /Applications/SF Symbols.app was not found."
+            find /Applications -maxdepth 2 -type d -iname "*Symbols*.app" -print
+            exit 1
+          fi
 
       - name: Verify Apple app signature and version
         run: |
