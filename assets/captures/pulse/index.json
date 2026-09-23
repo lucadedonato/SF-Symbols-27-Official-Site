@@ -1,0 +1,18 @@
+{
+  "effect": "pulse",
+  "symbols": [
+    "arrow.forward.folder",
+    "folder",
+    "folder.badge.minus",
+    "folder.badge.person.crop",
+    "folder.badge.plus",
+    "folder.circle",
+    "folder.fill",
+    "folder.fill.badge.minus",
+    "folder.fill.badge.person.crop",
+    "folder.fill.badge.plus",
+    "plus.rectangle.on.folder",
+    "plus.rectangle.on.folder.fill",
+    "questionmark.folder"
+  ]
+}
