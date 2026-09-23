@@ -1,0 +1,10 @@
+<svg
+xmlns="http://www.w3.org/2000/svg"
+viewBox="181.360000 -272.640000 1988.280000 1988.280000"
+role="img"
+aria-label="arrowtriangle.right.square.fill">
+<title>arrowtriangle.right.square.fill</title>
+<g transform="translate(0 1443.000000) scale(1 -1)">
+<path d="M569 -199H1782C1992 -199 2096 -96 2096 110V1332C2096 1538 1992 1642 1782 1642H569C360 1642 255 1538 255 1332V110C255 -96 360 -199 569 -199ZM986 319C938 290 883 313 883 363V1080C883 1129 942 1150 986 1124L1573 776C1615 751 1616 691 1573 665Z" fill="currentColor"/>
+</g>
+</svg>

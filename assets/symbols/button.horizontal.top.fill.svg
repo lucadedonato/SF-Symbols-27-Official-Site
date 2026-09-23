@@ -1,0 +1,10 @@
+<svg
+xmlns="http://www.w3.org/2000/svg"
+viewBox="157.360000 -37.640000 2636.280000 1516.280000"
+role="img"
+aria-label="button.horizontal.top.fill">
+<title>button.horizontal.top.fill</title>
+<g transform="translate(0 1441.000000) scale(1 -1)">
+<path d="M2161 409C2472 409 2696 598 2696 895C2696 1192 2472 1381 2161 1381H790C479 1381 255 1192 255 895C255 598 479 409 790 409ZM2161 60C2446 60 2667 224 2690 494C2569 353 2381 272 2161 272H790C570 272 382 353 261 493C285 224 504 60 790 60Z" fill="currentColor"/>
+</g>
+</svg>

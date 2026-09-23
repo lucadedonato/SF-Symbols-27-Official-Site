@@ -1,0 +1,31 @@
+{
+  "source": "Apple SF Symbols 27 DMG recovered project data",
+  "policy": "Only official SVGs, recovered Apple metadata, and recovered Apple animation recipes are rendered. No placeholder icon or invented animation is generated.",
+  "catalog": {
+    "catalog": 7936,
+    "officialSvg": 7915,
+    "missingOfficialSvg": 21,
+    "layeredSvg": 7564
+  },
+  "verifiedRunnableEffects": [
+    "bounce up",
+    "bounce down",
+    "pulse",
+    "breathe",
+    "breathe + pulse"
+  ],
+  "conditionalVerifiedEffect": {
+    "wiggle rotation": 329
+  },
+  "blockedUntilExactRendererRecovered": [
+    "rotate",
+    "draw",
+    "variable draw",
+    "magic replace",
+    "wiggle translation"
+  ],
+  "notes": [
+    "The 21 catalog symbols without recovered official SVG remain listed by name but are not replaced with fabricated artwork.",
+    "Original SVG downloads always point to assets/symbols and are never generated from layered preview files."
+  ]
+}

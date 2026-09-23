@@ -1,0 +1,10 @@
+<svg
+xmlns="http://www.w3.org/2000/svg"
+viewBox="181.360000 -272.640000 1988.280000 1988.280000"
+role="img"
+aria-label="pointer.arrow.ipad.square.fill">
+<title>pointer.arrow.ipad.square.fill</title>
+<g transform="translate(0 1443.000000) scale(1 -1)">
+<path d="M569 -199H1782C1992 -199 2096 -96 2096 110V1332C2096 1538 1992 1642 1782 1642H569C360 1642 255 1538 255 1332V110C255 -96 360 -199 569 -199ZM1229 414 969 155C901 88 813 121 813 202V1200C813 1290 907 1323 969 1261L1673 558C1729 501 1691 414 1595 414Z" fill="currentColor"/>
+</g>
+</svg>

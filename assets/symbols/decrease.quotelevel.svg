@@ -1,0 +1,10 @@
+<svg
+xmlns="http://www.w3.org/2000/svg"
+viewBox="180.000000 -288.000000 1211.000000 2025.000000"
+role="img"
+aria-label="decrease.quotelevel">
+<title>decrease.quotelevel</title>
+<g transform="translate(0 1449.000000) scale(1 -1)">
+<path d="M335 -213C381 -213 416 -176 416 -131V1581C416 1626 381 1662 335 1662C290 1662 255 1626 255 1581V-131C255 -176 290 -213 335 -213ZM1160 418C1233 369 1316 397 1316 486V960C1316 1052 1237 1081 1160 1029L829 804C772 765 769 679 829 639Z" fill="currentColor"/>
+</g>
+</svg>

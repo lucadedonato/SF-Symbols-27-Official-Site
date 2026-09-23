@@ -1,0 +1,10 @@
+<svg
+xmlns="http://www.w3.org/2000/svg"
+viewBox="163.760000 -510.240000 761.480000 2463.480000"
+role="img"
+aria-label="audio.jack.mono">
+<title>audio.jack.mono</title>
+<g transform="translate(0 1443.000000) scale(1 -1)">
+<path d="M545 -20C704 -20 834 110 834 269V837C834 872 809 896 774 896H316C279 896 255 872 255 837V269C255 110 385 -20 545 -20ZM461 -419H628V45H461ZM449 1013H640V1561H449ZM449 1668H640V1801C640 1838 616 1862 581 1862H508C473 1862 449 1838 449 1801Z" fill="currentColor"/>
+</g>
+</svg>

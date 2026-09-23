@@ -1,0 +1,10 @@
+<svg
+xmlns="http://www.w3.org/2000/svg"
+viewBox="163.720000 -510.280000 835.560000 2464.560000"
+role="img"
+aria-label="cable.connector">
+<title>cable.connector</title>
+<g transform="translate(0 1444.000000) scale(1 -1)">
+<path d="M498 -419H666V541H498ZM378 389H785C872 389 908 424 908 512V1281C908 1368 872 1404 785 1404H378C290 1404 255 1368 255 1281V512C255 424 290 389 378 389ZM386 1521H777V1740C777 1828 740 1863 653 1863H510C422 1863 386 1828 386 1740Z" fill="currentColor"/>
+</g>
+</svg>

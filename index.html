@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SF Symbols 27</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="brand-title">SF Symbols 27</div>
+      <div class="brand-subtitle">Official Apple assets recovered from the SF Symbols 27 package</div>
+    </div>
+    <div id="counter" class="counter" aria-live="polite"></div>
+  </header>
+
+  <main>
+    <section class="controls" aria-label="Filtros">
+      <input id="search" type="search" placeholder="Pesquisar símbolo..." autocomplete="off">
+      <select id="category" aria-label="Categoria">
+        <option value="">Todas as categorias</option>
+      </select>
+    </section>
+
+    <section id="grid" class="symbol-grid" aria-label="Catálogo de símbolos"></section>
+
+    <div class="load-more-wrap">
+      <button id="loadMore" class="load-more" type="button">Carregar mais</button>
+    </div>
+  </main>
+
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close></div>
+    <article class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalName">
+      <button class="modal-close" type="button" data-close aria-label="Fechar">×</button>
+
+      <div class="modal-preview" id="modalPreview">
+        <img id="modalImage" alt="">
+        <div id="modalLayered" hidden aria-hidden="true"></div>
+        <div id="missingPreview" class="missing-preview" hidden>
+          <span>SVG oficial não recuperado</span>
+        </div>
+      </div>
+
+      <h2 id="modalName"></h2>
+      <div id="modalMeta" class="modal-meta"></div>
+      <div id="modalCategories" class="modal-categories"></div>
+
+      <section id="animationSection" class="animation-section" aria-labelledby="animationTitle">
+        <div id="animationTitle" class="animation-title">Animações oficiais verificadas</div>
+        <div id="animationButtons" class="animation-buttons"></div>
+        <button id="stopAnimation" class="stop-animation" type="button">Stop</button>
+      </section>
+
+      <div class="modal-actions">
+        <a id="downloadButton" class="download-button" download>Baixar SVG oficial</a>
+      </div>
+    </article>
+  </div>
+
+  <script src="data/catalog.js"></script>
+  <script src="data/official-animation-data.js"></script>
+  <script src="js/animation-engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
