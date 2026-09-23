@@ -6,7 +6,7 @@ import Symbols
 final class CaptureApp: NSObject, NSApplicationDelegate {
     private let frameRate = 60.0
     private let captureDuration = 1.5
-    private enum EffectKind: String, CaseIterable { case bounce, pulse, breathe }
+    private enum EffectKind: String, CaseIterable { case bounce, pulse, breathe, wiggle, rotate, drawOn, drawOff }
     private let effectsToExport = EffectKind.allCases
     private let symbolsToExport = [
         "folder",
@@ -117,6 +117,14 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
             imageView.addSymbolEffect(.pulse, options: .nonRepeating)
         case .breathe:
             imageView.addSymbolEffect(.breathe, options: .nonRepeating)
+        case .wiggle:
+            imageView.addSymbolEffect(.wiggle, options: .nonRepeating)
+        case .rotate:
+            imageView.addSymbolEffect(.rotate, options: .nonRepeating)
+        case .drawOn:
+            imageView.addSymbolEffect(.drawOn, options: .nonRepeating)
+        case .drawOff:
+            imageView.addSymbolEffect(.drawOff, options: .nonRepeating)
         }
 
         // Capture on the actual display refresh, as recommended for AppKit drawing.
