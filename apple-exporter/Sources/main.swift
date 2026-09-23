@@ -105,11 +105,13 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         context.clear(CGRect(origin: .zero, size: canvasSize))
         layer.render(in: context)
 
-        guard
-            let cgImage = context.makeImage(),
-            let bitmap = NSBitmapImageRep(cgImage: cgImage),
-            let png = bitmap.representation(using: .png, properties: [:])
-        else {
+        guard let cgImage = context.makeImage() else {
+            fail("Could not create CGImage frame")
+            return
+        }
+
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        guard let png = bitmap.representation(using: .png, properties: [:]) else {
             fail("Could not encode PNG frame")
             return
         }
