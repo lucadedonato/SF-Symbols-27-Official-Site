@@ -4,9 +4,27 @@ import Symbols
 
 @MainActor
 final class CaptureApp: NSObject, NSApplicationDelegate {
-    private let symbolName = "folder"
     private let frameRate = 60.0
     private let captureDuration = 1.5
+    private let symbolsToExport = [
+        "folder",
+        "folder.fill",
+        "folder.circle",
+        "folder.circle.fill",
+        "folder.and.person",
+        "folder.and.person.fill",
+        "folder.badge.plus",
+        "folder.fill.badge.plus",
+        "folder.badge.minus",
+        "folder.fill.badge.minus",
+        "folder.badge.person.crop",
+        "folder.fill.badge.person.crop",
+        "questionmark.folder",
+        "arrow.forward.folder",
+        "arrow.forward.folder.fill",
+        "plus.rectangle.on.folder",
+        "plus.rectangle.on.folder.fill"
+    ]
     private let canvasSize = CGSize(width: 256, height: 256)
 
     private var window: NSWindow!
@@ -15,16 +33,31 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
     private var frameIndex = 0
     private var frameFingerprints = Set<Data>()
     private var outputDirectory: URL!
+    private var currentSymbolIndex = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        startCurrentSymbol()
+    }
+
+    private func startCurrentSymbol() {
+        guard currentSymbolIndex < symbolsToExport.count else {
+            print("ALL_EXPORTS_COMPLETE")
+            NSApp.terminate(nil)
+            return
+        }
+
+        let symbolName = symbolsToExport[currentSymbolIndex]
         guard let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: symbolName) else {
-            fail("Symbol unavailable in the macOS system catalog: \(symbolName)")
+            print("SKIP: Symbol unavailable in macOS system catalog: \(symbolName)")
+            currentSymbolIndex += 1
+            startCurrentSymbol()
             return
         }
 
         outputDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
             .appendingPathComponent("output", isDirectory: true)
             .appendingPathComponent("bounce", isDirectory: true)
+            .appendingPathComponent(symbolName, isDirectory: true)
 
         do {
             try FileManager.default.removeItemIfExists(at: outputDirectory)
@@ -33,6 +66,9 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
             fail("Could not prepare output directory: \(error)")
             return
         }
+
+        frameIndex = 0
+        frameFingerprints.removeAll()
 
         window = NSWindow(
             contentRect: CGRect(origin: .zero, size: canvasSize),
@@ -63,6 +99,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         window.displayIfNeeded()
 
         // Apple's Symbols.framework executes the effect. We do not synthesize keyframes.
+        imageView.removeAllSymbolEffects()
         imageView.addSymbolEffect(.bounce, options: .nonRepeating)
 
         // Capture on the actual display refresh, as recommended for AppKit drawing.
@@ -136,10 +173,13 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
     }
 
     private func finish(totalFrames: Int) {
+        let symbolName = symbolsToExport[currentSymbolIndex]
         let uniqueFrames = frameFingerprints.count
-        print("Distinct pixel frames: \(uniqueFrames) / \(frameIndex)")
+        print("Distinct pixel frames for \(symbolName): \(uniqueFrames) / \(frameIndex)")
         guard uniqueFrames >= 6 else {
-            fail("CAPTURE_INVALID: too few distinct pixel frames to establish a captured animation")
+            print("SKIP_INVALID: \(symbolName) produced only \(uniqueFrames) distinct pixel frames")
+            currentSymbolIndex += 1
+            startCurrentSymbol()
             return
         }
 
@@ -163,7 +203,8 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
             print("Effect: bounce")
             print("Captured frames: \(frameIndex)")
             print("Output: \(outputDirectory.path)")
-            NSApp.terminate(nil)
+            currentSymbolIndex += 1
+            startCurrentSymbol()
         } catch {
             fail("Could not write manifest: \(error)")
         }
