@@ -49,10 +49,35 @@ jobs:
           unique = len(set(hashes))
           print(f"Frames: {len(frames)}; unique PNG hashes: {unique}")
           print(f"Manifest frames: {manifest['frames']}; effect: {manifest['effect']}")
-          if len(frames) != manifest["frames"] or unique < 2:
+          if len(frames) != manifest["frames"] or unique < 6 or manifest.get("uniquePixelFrames", 0) < 6:
               print("CAPTURE_INVALID: no demonstrable animation in exported PNG frames", file=sys.stderr)
               sys.exit(1)
-          print("CAPTURE_CHANGED: frames differ; visual fidelity still requires inspection")
+          print("CAPTURE_CHANGED: at least six distinct pixel frames; visual fidelity still requires inspection")
+          PY
+
+      - name: Create animation preview
+        working-directory: apple-exporter
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import html
+          folder = Path("output/bounce")
+          data = json.loads((folder / "manifest.json").read_text())
+          files = sorted(p.name for p in folder.glob("frame-*.png"))
+          page = """<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Apple runtime capture preview</title><style>body{font:16px system-ui;text-align:center;padding:24px;background:#f5f5f7;color:#1d1d1f}
+          img{display:block;margin:24px auto;width:256px;height:256px;background:white;border-radius:20px}
+          button{padding:10px 18px;border:0;border-radius:24px;cursor:pointer}</style>
+          <h1>Captura do runtime Apple</h1><p>Prévia dos PNGs exportados, sem animação CSS sintetizada.</p>
+          <img id="frame" alt="Frame capturado"><p id="status"></p><button id="toggle">Pausar</button>
+          <script>const frames=FILES;let index=0,playing=true;const img=document.getElementById('frame'),status=document.getElementById('status');
+          function tick(){if(!playing)return;img.src=frames[index];status.textContent=(index+1)+' / '+frames.length;index=(index+1)%frames.length}
+          document.getElementById('toggle').onclick=()=>{playing=!playing;document.getElementById('toggle').textContent=playing?'Pausar':'Reproduzir'};
+          tick();setInterval(tick,1000/FPS);</script></html>"""
+          page = page.replace("FILES", json.dumps(files)).replace("FPS", str(data["fps"]))
+          (folder / "preview.html").write_text(page, encoding="utf-8")
+          print("Preview created: output/bounce/preview.html")
           PY
 
       - name: Upload exported result
