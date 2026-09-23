@@ -11,7 +11,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
 
     private var window: NSWindow!
     private var imageView: NSImageView!
-    private var timer: Timer?
+    private var displayLink: CADisplayLink?
     private var frameIndex = 0
     private var outputDirectory: URL!
 
@@ -57,34 +57,34 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         imageView.wantsLayer = true
         host.addSubview(imageView)
 
-        // Core Animation needs the view attached to a real window render tree.
+        // Symbol effects only advance while the view participates in a real window render tree.
         window.orderBack(nil)
         window.displayIfNeeded()
 
-        // This is Apple's Symbols framework effect. No browser/CSS animation is synthesized here.
+        // Apple's Symbols.framework executes the effect. We do not synthesize keyframes.
         imageView.addSymbolEffect(.bounce, options: .nonRepeating)
 
-        let interval = 1.0 / frameRate
-        timer = Timer(timeInterval: interval, target: self, selector: #selector(captureTick(_:)), userInfo: nil, repeats: true)
-        RunLoop.main.add(timer!, forMode: .common)
+        // Capture on the actual display refresh, as recommended for AppKit drawing.
+        let link = imageView.displayLink(target: self, selector: #selector(captureTick(_:)))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
     }
 
-    @objc private func captureTick(_ timer: Timer) {
-        captureFrame(timer: timer)
+    @objc private func captureTick(_ link: CADisplayLink) {
+        captureFrame()
     }
 
-    private func captureFrame(timer: Timer) {
+    private func captureFrame() {
         let totalFrames = Int(ceil(captureDuration * frameRate))
         if frameIndex >= totalFrames {
-            timer.invalidate()
+            displayLink?.invalidate()
+            displayLink = nil
             finish(totalFrames: totalFrames)
             return
         }
 
-        guard let layer = imageView.layer else {
-            fail("NSImageView has no backing layer")
-            return
-        }
+        // Ask AppKit to draw the view at the current presentation time.
+        imageView.displayIfNeeded()
 
         let width = Int(canvasSize.width)
         let height = Int(canvasSize.height)
@@ -103,7 +103,14 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         }
 
         context.clear(CGRect(origin: .zero, size: canvasSize))
-        layer.render(in: context)
+        guard let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false) else {
+            fail("Could not create NSGraphicsContext")
+            return
+        }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = graphicsContext
+        imageView.displayIgnoringOpacity(imageView.bounds, in: graphicsContext)
+        NSGraphicsContext.restoreGraphicsState()
 
         guard let cgImage = context.makeImage() else {
             fail("Could not create CGImage frame")
