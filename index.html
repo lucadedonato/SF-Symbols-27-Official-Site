@@ -12,7 +12,7 @@
       <div class="brand-title">SF Symbols 27</div>
       <div class="brand-subtitle">Official Apple assets recovered from the SF Symbols 27 package</div>
     </div>
-    <div id="counter" class="counter" aria-live="polite"></div>
+    <div class="header-stats"><div id="counter" class="counter" aria-live="polite"></div><div id="animationCounter" class="counter" aria-live="polite"></div></div>
   </header>
 
   <main>
@@ -22,6 +22,7 @@
         <option value="">Todas as categorias</option>
       </select>
       <label class="import-frames" for="frameFolder">Importar captura oficial<input id="frameFolder" type="file" webkitdirectory multiple accept=".png,.json" hidden></label>
+      <label class="onlyAnimated"><input id="onlyAnimated" type="checkbox"> Somente com animação oficial</label>
     </section>
 
     <section id="grid" class="symbol-grid" aria-label="Catálogo de símbolos"></section>
