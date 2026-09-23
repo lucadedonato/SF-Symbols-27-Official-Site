@@ -35,7 +35,7 @@
   const downloadAnimationButton = document.getElementById("downloadAnimationButton");
   const captures = new Map();
   const bundledCaptureRoot = "assets/captures/";
-  const capturedEffects = ["bounce", "pulse", "breathe", "wiggle", "rotate", "drawOn", "drawOff"];
+  const capturedEffects = ["appear", "bounce", "disappear", "pulse", "scale", "variableColor", "breathe", "wiggle", "rotate", "drawOn", "drawOff"];
   let captureTimer = null;
   let captureUrls = [];
   let captureIndex = 0;
