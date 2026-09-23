@@ -31,6 +31,7 @@
   const frameFolder = document.getElementById("frameFolder");
   const capturedFrame = document.getElementById("capturedFrame");
   const captureStatus = document.getElementById("captureStatus");
+  let captureDownload = null;
   const captures = new Map();
   const bundledCaptureRoot = "assets/captures/bounce/";
   let captureTimer = null;
@@ -245,7 +246,11 @@
           ]);
           if (!first.ok || !last.ok) continue;
           captures.set(name, {
-            effect: manifest.effect, fps: Number(manifest.fps), frames, bundled: true
+            effect: manifest.effect,
+            fps: Number(manifest.fps),
+            frames,
+            bundled: true,
+            download: bundledCaptureRoot + "downloads/" + encodeURIComponent(name) + "-bounce.zip"
           });
           if (currentSymbol?.name === name) refreshCaptureControls();
           break;
@@ -259,6 +264,7 @@
     if (!currentSymbol) return;
     const capture = captures.get(currentSymbol.name);
     const previous = animationButtons.querySelector("[data-captured]");
+    animationButtons.querySelector("[data-capture-download]")?.remove();
     previous?.remove();
     if (!capture) {
       captureStatus.textContent = "";
@@ -270,6 +276,15 @@
     button.textContent = "▶ Captura Apple: " + capture.effect;
     button.addEventListener("click", () => playCaptured(capture));
     animationButtons.prepend(button);
+    if (capture.download) {
+      const download = document.createElement("a");
+      download.dataset.captureDownload = "true";
+      download.className = "capture-download";
+      download.href = capture.download;
+      download.download = currentSymbol.name + "-bounce.zip";
+      download.textContent = "Baixar animação oficial (.zip)";
+      animationButtons.appendChild(download);
+    }
     animationSection.hidden = false;
     captureStatus.textContent = capture.frames.length + " frames do runtime Apple importados";
   }
