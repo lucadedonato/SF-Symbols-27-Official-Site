@@ -65,12 +65,12 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         imageView.addSymbolEffect(.bounce, options: .nonRepeating)
 
         let interval = 1.0 / frameRate
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] timer in
-            Task { @MainActor in
-                self?.captureFrame(timer: timer)
-            }
-        }
+        timer = Timer(timeInterval: interval, target: self, selector: #selector(captureTick(_:)), userInfo: nil, repeats: true)
         RunLoop.main.add(timer!, forMode: .common)
+    }
+
+    @objc private func captureTick(_ timer: Timer) {
+        captureFrame(timer: timer)
     }
 
     private func captureFrame(timer: Timer) {
