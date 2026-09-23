@@ -33,8 +33,31 @@ jobs:
         working-directory: apple-exporter
         run: .build/release/SFExporter
 
+      - name: Verify captured frames are not identical
+        working-directory: apple-exporter
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from hashlib import sha256
+          import json
+          import sys
+
+          folder = Path("output/bounce")
+          frames = sorted(folder.glob("frame-*.png"))
+          manifest = json.loads((folder / "manifest.json").read_text())
+          hashes = [sha256(frame.read_bytes()).hexdigest() for frame in frames]
+          unique = len(set(hashes))
+          print(f"Frames: {len(frames)}; unique PNG hashes: {unique}")
+          print(f"Manifest frames: {manifest['frames']}; effect: {manifest['effect']}")
+          if len(frames) != manifest["frames"] or unique < 2:
+              print("CAPTURE_INVALID: no demonstrable animation in exported PNG frames", file=sys.stderr)
+              sys.exit(1)
+          print("CAPTURE_CHANGED: frames differ; visual fidelity still requires inspection")
+          PY
+
       - name: Upload exported result
         uses: actions/upload-artifact@v4
         with:
           name: sf-symbol-official-bounce-frames
           path: apple-exporter/output/
+          if-no-files-found: error
