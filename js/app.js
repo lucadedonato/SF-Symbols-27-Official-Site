@@ -28,6 +28,13 @@
   const animationButtons = document.getElementById("animationButtons");
   const stopAnimationButton = document.getElementById("stopAnimation");
   const downloadButton = document.getElementById("downloadButton");
+  const frameFolder = document.getElementById("frameFolder");
+  const capturedFrame = document.getElementById("capturedFrame");
+  const captureStatus = document.getElementById("captureStatus");
+  const captures = new Map();
+  let captureTimer = null;
+  let captureUrls = [];
+  let captureIndex = 0;
 
   let filtered = symbols;
   let visibleCount = PAGE_SIZE;
@@ -180,6 +187,81 @@
     }
   }
 
+
+  function stopCapturedPlayback() {
+    if (captureTimer !== null) clearInterval(captureTimer);
+    captureTimer = null;
+    capturedFrame.hidden = true;
+    capturedFrame.removeAttribute("src");
+    modalPreview.classList.remove("captured-active");
+  }
+
+  function playCaptured(capture) {
+    ENGINE.stop();
+    stopCapturedPlayback();
+    if (!capture || capture.frames.length === 0) return;
+    modalPreview.classList.add("captured-active");
+    capturedFrame.hidden = false;
+    captureIndex = 0;
+    const tick = () => {
+      capturedFrame.src = capture.frames[captureIndex];
+      captureIndex = (captureIndex + 1) % capture.frames.length;
+    };
+    tick();
+    captureTimer = setInterval(tick, 1000 / capture.fps);
+  }
+
+  function refreshCaptureControls() {
+    if (!currentSymbol) return;
+    const capture = captures.get(currentSymbol.name);
+    const previous = animationButtons.querySelector("[data-captured]");
+    previous?.remove();
+    if (!capture) {
+      captureStatus.textContent = "";
+      return;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.captured = "true";
+    button.textContent = "▶ Captura Apple: " + capture.effect;
+    button.addEventListener("click", () => playCaptured(capture));
+    animationButtons.prepend(button);
+    animationSection.hidden = false;
+    captureStatus.textContent = capture.frames.length + " frames do runtime Apple importados";
+  }
+
+  async function importCapturedFolder(files) {
+    const selected = Array.from(files);
+    const manifestFile = selected.find(file => file.name === "manifest.json");
+    if (!manifestFile) {
+      captureStatus.textContent = "Selecione a pasta que contém manifest.json e os frames PNG.";
+      return;
+    }
+    let manifest;
+    try {
+      manifest = JSON.parse(await manifestFile.text());
+    } catch (_) {
+      captureStatus.textContent = "Manifest inválido.";
+      return;
+    }
+    const symbol = symbols.find(item => item.name === manifest.symbol);
+    const pngFiles = selected.filter(file => /^frame-\\d+\\.png$/i.test(file.name))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!symbol || manifest.source !== "Apple Symbols.framework" ||
+        !Number.isInteger(manifest.frames) || pngFiles.length !== manifest.frames ||
+        !(manifest.uniquePixelFrames >= 6) ||
+        !(Number(manifest.fps) > 0 && Number(manifest.fps) <= 120)) {
+      captureStatus.textContent = "Captura incompatível ou não validada. Nenhuma animação importada.";
+      return;
+    }
+    const old = captures.get(symbol.name);
+    if (old) old.frames.forEach(url => URL.revokeObjectURL(url));
+    const frames = pngFiles.map(file => URL.createObjectURL(file));
+    captures.set(symbol.name, { effect: String(manifest.effect), fps: Number(manifest.fps), frames });
+    if (currentSymbol?.name === symbol.name) refreshCaptureControls();
+    captureStatus.textContent = "Captura importada: " + symbol.name + " / " + manifest.effect;
+  }
+
   function renderAnimationButtons(symbol) {
     animationButtons.replaceChildren();
 
@@ -191,7 +273,10 @@
       button.type = "button";
       button.dataset.effect = effect.id;
       button.textContent = effect.label;
-      button.addEventListener("click", () => ENGINE.play(effect.id, symbol.name));
+      button.addEventListener("click", () => {
+        stopCapturedPlayback();
+        ENGINE.play(effect.id, symbol.name);
+      });
       animationButtons.appendChild(button);
     }
   }
@@ -231,6 +316,7 @@
     }
 
     renderAnimationButtons(symbol);
+    refreshCaptureControls();
     loadLayeredSvg(symbol);
 
     modal.classList.add("open");
@@ -238,6 +324,7 @@
   }
 
   function closeModal() {
+    stopCapturedPlayback();
     ENGINE.stop();
     layerLoadToken += 1;
     currentSymbol = null;
@@ -255,7 +342,11 @@
     visibleCount += PAGE_SIZE;
     render();
   });
-  stopAnimationButton.addEventListener("click", () => ENGINE.stop());
+  stopAnimationButton.addEventListener("click", () => {
+    stopCapturedPlayback();
+    ENGINE.stop();
+  });
+  frameFolder.addEventListener("change", () => importCapturedFolder(frameFolder.files));
 
   modal.addEventListener("click", event => {
     if (event.target.hasAttribute("data-close")) {
