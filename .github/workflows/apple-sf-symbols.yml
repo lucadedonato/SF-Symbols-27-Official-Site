@@ -2,6 +2,10 @@ name: Apple SF Symbols Export
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "assets/captures/attempted-symbols.json"
 
 permissions:
   contents: write
@@ -46,7 +50,7 @@ jobs:
           if attempted_path.exists():
               attempted = set(json.loads(attempted_path.read_text(encoding="utf-8")).get("symbols", []))
 
-          batch_size = 40
+          batch_size = 100
           batch = [name for name in names if name not in attempted][:batch_size]
           if not batch:
               raise SystemExit("ALL_CATALOG_SYMBOLS_ATTEMPTED")
