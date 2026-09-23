@@ -42,17 +42,27 @@ jobs:
           import json
           import sys
 
-          folder = Path("output/bounce")
-          frames = sorted(folder.glob("frame-*.png"))
-          manifest = json.loads((folder / "manifest.json").read_text())
-          hashes = [sha256(frame.read_bytes()).hexdigest() for frame in frames]
-          unique = len(set(hashes))
-          print(f"Frames: {len(frames)}; unique PNG hashes: {unique}")
-          print(f"Manifest frames: {manifest['frames']}; effect: {manifest['effect']}")
-          if len(frames) != manifest["frames"] or unique < 6 or manifest.get("uniquePixelFrames", 0) < 6:
-              print("CAPTURE_INVALID: no demonstrable animation in exported PNG frames", file=sys.stderr)
+          root = Path("output/bounce")
+          manifests = sorted(root.glob("*/manifest.json"))
+          if not manifests:
+              print("CAPTURE_INVALID: no manifests exported", file=sys.stderr)
               sys.exit(1)
-          print("CAPTURE_CHANGED: at least six distinct pixel frames; visual fidelity still requires inspection")
+
+          valid = 0
+          for manifest_path in manifests:
+              folder = manifest_path.parent
+              frames = sorted(folder.glob("frame-*.png"))
+              manifest = json.loads(manifest_path.read_text())
+              hashes = [sha256(frame.read_bytes()).hexdigest() for frame in frames]
+              unique = len(set(hashes))
+              print(f"{manifest['symbol']}: frames={len(frames)} unique={unique}")
+              if len(frames) == manifest["frames"] and unique >= 6 and manifest.get("uniquePixelFrames", 0) >= 6:
+                  valid += 1
+
+          if valid == 0:
+              print("CAPTURE_INVALID: no valid animated symbols exported", file=sys.stderr)
+              sys.exit(1)
+          print(f"CAPTURE_CHANGED: {valid} valid symbol captures")
           PY
 
       - name: Create animation preview
@@ -62,27 +72,30 @@ jobs:
           from pathlib import Path
           import json
           import html
-          folder = Path("output/bounce")
-          data = json.loads((folder / "manifest.json").read_text())
-          files = sorted(p.name for p in folder.glob("frame-*.png"))
+          root = Path("output/bounce")
+          cards = []
+          for manifest_path in sorted(root.glob("*/manifest.json")):
+              folder = manifest_path.parent
+              data = json.loads(manifest_path.read_text())
+              files = sorted(p.name for p in folder.glob("frame-*.png"))
+              cards.append({"symbol": data["symbol"], "fps": data["fps"], "folder": folder.name, "frames": files})
           page = """<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Apple runtime capture preview</title><style>body{font:16px system-ui;text-align:center;padding:24px;background:#f5f5f7;color:#1d1d1f}
-          img{display:block;margin:24px auto;width:256px;height:256px;background:white;border-radius:20px}
-          button{padding:10px 18px;border:0;border-radius:24px;cursor:pointer}</style>
-          <h1>Captura do runtime Apple</h1><p>Prévia dos PNGs exportados, sem animação CSS sintetizada.</p>
-          <img id="frame" alt="Frame capturado"><p id="status"></p><button id="toggle">Pausar</button>
-          <script>const frames=FILES;let index=0,playing=true;const img=document.getElementById('frame'),status=document.getElementById('status');
-          function tick(){if(!playing)return;img.src=frames[index];status.textContent=(index+1)+' / '+frames.length;index=(index+1)%frames.length}
-          document.getElementById('toggle').onclick=()=>{playing=!playing;document.getElementById('toggle').textContent=playing?'Pausar':'Reproduzir'};
-          tick();setInterval(tick,1000/FPS);</script></html>"""
-          page = page.replace("FILES", json.dumps(files)).replace("FPS", str(data["fps"]))
-          (folder / "preview.html").write_text(page, encoding="utf-8")
-          print("Preview created: output/bounce/preview.html")
+          <title>Apple runtime capture preview</title><style>body{font:16px system-ui;padding:24px;background:#f5f5f7;color:#1d1d1f}
+          .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}.card{background:white;padding:18px;border-radius:20px;text-align:center}
+          img{width:220px;height:220px;object-fit:contain}button{padding:9px 16px;border:0;border-radius:22px;cursor:pointer}</style>
+          <h1>Capturas do runtime Apple</h1><div class="grid" id="grid"></div>
+          <script>const items=ITEMS;const grid=document.getElementById('grid');for(const item of items){let i=0,playing=true;const card=document.createElement('div');card.className='card';
+          const h=document.createElement('h2');h.textContent=item.symbol;const img=document.createElement('img');const b=document.createElement('button');b.textContent='Pausar';
+          card.append(h,img,b);grid.append(card);const tick=()=>{if(!playing)return;img.src=item.folder+'/'+item.frames[i];i=(i+1)%item.frames.length};tick();setInterval(tick,1000/item.fps);
+          b.onclick=()=>{playing=!playing;b.textContent=playing?'Pausar':'Reproduzir'}};</script></html>"""
+          page = page.replace("ITEMS", json.dumps(cards))
+          (root / "preview.html").write_text(page, encoding="utf-8")
+          print(f"Preview created for {len(cards)} captures")
           PY
 
       - name: Upload exported result
         uses: actions/upload-artifact@v4
         with:
-          name: sf-symbol-official-bounce-frames
+          name: sf-symbol-official-bounce-pack
           path: apple-exporter/output/
           if-no-files-found: error
