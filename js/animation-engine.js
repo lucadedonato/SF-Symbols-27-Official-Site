@@ -8,6 +8,17 @@
   }
 
   const running = new Set();
+  let fullData = null;
+
+  function setFullData(data) {
+    if (!data || !data.symbols || Number(data.catalogCount) !== 7936) return false;
+    fullData = data;
+    return true;
+  }
+
+  function symbolMetadata(symbolName) {
+    return fullData?.symbols?.[symbolName] || null;
+  }
 
   function curve(name) {
     const value = DATA.curves?.[name];
@@ -131,7 +142,10 @@
 
   function pulseTargets(symbolName) {
     const { preview, svg } = previewElements();
-    const paths = DATA.pulseTargets?.[symbolName];
+    const metadataPaths = symbolMetadata(symbolName)?.effects?.pulse?.annotatedLayerTargets;
+    const paths = Array.isArray(metadataPaths) && metadataPaths.length
+      ? metadataPaths
+      : DATA.pulseTargets?.[symbolName];
 
     if (!svg || !Array.isArray(paths) || paths.length === 0) {
       return null;
@@ -236,7 +250,9 @@
   }
 
   function wiggleRotation(symbolName) {
-    const direction = DATA.wiggleRotationDirection?.[symbolName];
+    const metadataDirection = symbolMetadata(symbolName)?.effects?.wiggle?.preferredDirection
+      || symbolMetadata(symbolName)?.preferences?.wiggleDirection;
+    const direction = metadataDirection || DATA.wiggleRotationDirection?.[symbolName];
     const recipe = DATA.recipes.wiggleRotation;
     const image = wholeImage();
 
@@ -254,7 +270,8 @@
       return false;
     }
 
-    const sign = direction === "counterClockwise" ? -1 : 1;
+    const normalizedDirection = String(direction).toLowerCase();
+    const sign = normalizedDirection === "counterclockwise" ? -1 : 1;
     const total = durations.reduce((sum, value) => sum + Number(value), 0);
     let elapsed = 0;
 
@@ -299,7 +316,11 @@
       { id: "breathe-pulse", label: "Breathe + Pulse" }
     ];
 
-    if (DATA.wiggleRotationDirection?.[symbolName]) {
+    const wiggleDirection = symbolMetadata(symbolName)?.effects?.wiggle?.preferredDirection
+      || symbolMetadata(symbolName)?.preferences?.wiggleDirection
+      || DATA.wiggleRotationDirection?.[symbolName];
+    const normalizedWiggle = String(wiggleDirection || "").toLowerCase();
+    if (normalizedWiggle === "clockwise" || normalizedWiggle === "counterclockwise") {
       effects.splice(3, 0, { id: "wiggle", label: "Wiggle" });
     }
 
@@ -320,6 +341,8 @@
 
   window.SFOfficialAnimationEngine = {
     data: DATA,
+    setFullData,
+    symbolMetadata,
     availableEffects,
     play,
     stop
