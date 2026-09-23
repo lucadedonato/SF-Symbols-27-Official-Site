@@ -1,0 +1,14 @@
+{
+  "canvas" : {
+    "height" : 256,
+    "width" : 256
+  },
+  "durationSeconds" : 1.5,
+  "effect" : "drawOff",
+  "fps" : 60,
+  "frames" : 90,
+  "note" : "Frames captured from the macOS Symbols.framework effect; no reconstructed CSS\/keyframe animation.",
+  "source" : "Apple Symbols.framework",
+  "symbol" : "06.circle.ar",
+  "uniquePixelFrames" : 26
+}
