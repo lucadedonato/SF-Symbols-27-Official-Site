@@ -8,25 +8,20 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
     private let captureDuration = 1.5
     private enum EffectKind: String, CaseIterable { case bounce, pulse, breathe, wiggle, rotate, drawOn, drawOff }
     private let effectsToExport = EffectKind.allCases
-    private let symbolsToExport = [
-        "folder",
-        "folder.fill",
-        "folder.circle",
-        "folder.circle.fill",
-        "folder.and.person",
-        "folder.and.person.fill",
-        "folder.badge.plus",
-        "folder.fill.badge.plus",
-        "folder.badge.minus",
-        "folder.fill.badge.minus",
-        "folder.badge.person.crop",
-        "folder.fill.badge.person.crop",
-        "questionmark.folder",
-        "arrow.forward.folder",
-        "arrow.forward.folder.fill",
-        "plus.rectangle.on.folder",
-        "plus.rectangle.on.folder.fill"
-    ]
+    private lazy var symbolsToExport: [String] = {
+        let environment = ProcessInfo.processInfo.environment
+        let file = environment["SF_SYMBOLS_FILE"] ?? "symbols.txt"
+        if let text = try? String(contentsOfFile: file, encoding: .utf8) {
+            let names = text.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.isEmpty }
+            if !names.isEmpty {
+                print("Loaded \(names.count) symbols from \(file)")
+                return names
+            }
+        }
+        print("WARNING: no symbol list file found; using smoke-test symbol")
+        return ["folder"]
+    }()
+
     private let canvasSize = CGSize(width: 256, height: 256)
 
     private var window: NSWindow!
