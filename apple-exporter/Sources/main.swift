@@ -103,10 +103,7 @@ final class CaptureApp: NSObject, NSApplicationDelegate {
         }
 
         context.clear(CGRect(origin: .zero, size: canvasSize))
-        guard let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false) else {
-            fail("Could not create NSGraphicsContext")
-            return
-        }
+        let graphicsContext = NSGraphicsContext(cgContext: context, flipped: false)
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = graphicsContext
         imageView.displayIgnoringOpacity(imageView.bounds, in: graphicsContext)
