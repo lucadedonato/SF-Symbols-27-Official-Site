@@ -1,170 +1,82 @@
-name: Test official SF Symbols on macOS
+name: Fresh official SF Symbols 27 export investigation
 
 on:
   push:
-    branches:
-      - sf-symbols-macos-test
+    branches: [sf-symbols-macos-test]
+    paths:
+      - ".github/workflows/sf-symbols-macos.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  run-sf-symbols:
+  investigate:
     runs-on: macos-26
-    timeout-minutes: 15
-
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Show macOS version
-        run: |
-          sw_vers
-          uname -m
-
-      - name: Download official SF Symbols DMG from Apple
-        run: |
-          curl --fail --location --retry 3 \
-            "https://devimages-cdn.apple.com/design/resources/download/SF-Symbols-27.dmg?2=" \
-            --output "$RUNNER_TEMP/SF-Symbols-27.dmg"
-          ls -lh "$RUNNER_TEMP/SF-Symbols-27.dmg"
-
-      - name: Mount DMG and install SF Symbols package
+      - uses: actions/checkout@v4
+      - name: Download and install official SF Symbols 27
         shell: bash
         run: |
           set -euo pipefail
-
-          MOUNT_POINT="$(hdiutil attach "$RUNNER_TEMP/SF-Symbols-27.dmg" -nobrowse | sed -n 's|^.*\(/Volumes/.*\)$|\1|p' | tail -n 1)"
-
-          if [ -z "$MOUNT_POINT" ]; then
-            echo "Could not determine DMG mount point."
-            exit 1
-          fi
-
-          echo "Mounted at: $MOUNT_POINT"
-          find "$MOUNT_POINT" -maxdepth 2 -print
-
-          PKG_PATH="$(find "$MOUNT_POINT" -maxdepth 2 -type f -name "*.pkg" -print -quit)"
-
-          if [ -z "$PKG_PATH" ]; then
-            echo "No PKG installer was found in the DMG."
-            exit 1
-          fi
-
-          echo "Installing package: $PKG_PATH"
-          sudo installer -pkg "$PKG_PATH" -target /
-
-          hdiutil detach "$MOUNT_POINT"
-
-          if [ ! -d "/Applications/SF Symbols.app" ]; then
-            echo "Installer completed, but /Applications/SF Symbols.app was not found."
-            find /Applications -maxdepth 2 -type d -iname "*Symbols*.app" -print
-            exit 1
-          fi
-
-      - name: Verify Apple app signature and version
+          curl --fail --location --retry 3 "https://devimages-cdn.apple.com/design/resources/download/SF-Symbols-27.dmg?2=" -o "$RUNNER_TEMP/SF-Symbols-27.dmg"
+          hdiutil attach "$RUNNER_TEMP/SF-Symbols-27.dmg" -mountpoint "$RUNNER_TEMP/sf-volume" -nobrowse
+          PKG="$(find "$RUNNER_TEMP/sf-volume" -name '*.pkg' -print -quit)"
+          test -n "$PKG"
+          sudo installer -pkg "$PKG" -target /
+          hdiutil detach "$RUNNER_TEMP/sf-volume"
+          codesign --verify --deep --strict "/Applications/SF Symbols.app"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "/Applications/SF Symbols.app/Contents/Info.plist"
+      - name: Investigate official command line exporter and category resources
+        shell: bash
         run: |
-          codesign --verify --deep --strict --verbose=2 "/Applications/SF Symbols.app"
-          echo "SF Symbols version:"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "/Applications/SF Symbols.app/Contents/Info.plist" || true
-          echo "Bundle identifier:"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "/Applications/SF Symbols.app/Contents/Info.plist" || true
-
-      - name: Launch the official SF Symbols app
+          set -uo pipefail
+          mkdir -p fresh-export
+          APP="/Applications/SF Symbols.app/Contents"
+          echo '=== CLI CANDIDATES ==='
+          find "$APP" -type f \( -perm -111 -o -name '*symbol*' -o -name '*Symbol*' \) | head -100
+          echo '=== CATEGORY METADATA CANDIDATES ==='
+          find "$APP" -type f \( -iname '*categor*' -o -iname '*metadata*' -o -iname '*symbol*map*' \) | head -100
+          echo '=== APP EXECUTABLE ==='
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist"
+          echo '=== CLI HELP CANDIDATES ==='
+          for cli in "$APP/MacOS/symbols" "$APP/Resources/symbols" "$APP/Helpers/symbols" "$APP/MacOS/SF Symbols"; do
+            if [ -x "$cli" ]; then
+              echo "CANDIDATE: $cli"
+              "$cli" --help 2>&1 | head -65 || true
+            fi
+          done
+          echo '=== RESOURCE DIRECTORY ==='
+          ls -lah "$APP/Resources" | head -100
+          echo '=== CATEGORY STRINGS ==='
+          find "$APP/Resources" -maxdepth 3 -type f \( -name '*.json' -o -name '*.plist' \) | head -80
+      - name: Launch app and inspect export UI
+        shell: bash
         run: |
           open "/Applications/SF Symbols.app"
           sleep 8
-          osascript -e 'tell application "SF Symbols" to activate' || true
-          sleep 4
-
-          echo "Running process:"
-          pgrep -fl "SF Symbols" || true
-
-          echo "Frontmost application:"
-          osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' || true
-
-      - name: Dismiss welcome screen and inspect official export menu
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/official-export"
-          osascript <<'APPLESCRIPT'
-          tell application "SF Symbols" to activate
-          delay 2
+          osascript <<'APPLESCRIPT' || true
           tell application "System Events"
             tell process "SF Symbols"
               set frontmost to true
               try
                 click button "Continue" of window 1
-              on error
-                key code 36
               end try
-              delay 3
-              try
-                set menuNames to name of every menu item of menu 1 of menu bar item "File" of menu bar 1
-                log "FILE_MENU: " & (menuNames as text)
-              on error errMsg
-                log "MENU_INSPECTION_ERROR: " & errMsg
-              end try
-            end tell
-          end tell
-          APPLESCRIPT
-          screencapture -x "$GITHUB_WORKSPACE/official-export/after-welcome.png" || true
-
-      - name: Test exporting one official folder SVG
-        run: |
-          osascript <<'APPLESCRIPT'
-          tell application "SF Symbols" to activate
-          delay 2
-          tell application "System Events"
-            tell process "SF Symbols"
-              set frontmost to true
-              keystroke "f" using command down
-              delay 1
-              keystroke "folder"
-              delay 3
-              key code 53
-              delay 1
-              try
-                log "WINDOW: " & (name of window 1)
-                log "FILE_MENU: " & ((name of every menu item of menu 1 of menu bar item "File" of menu bar 1) as text)
-              end try
-              try
-                click menu item "Export Symbol…" of menu 1 of menu bar item "File" of menu bar 1
-              on error errMsg
-                log "EXPORT_MENU_ERROR: " & errMsg
-                try
-                  click menu item "Export Symbol..." of menu 1 of menu bar item "File" of menu bar 1
-                end try
-              end try
-              delay 3
-              log "EXPORT_DIALOG: " & (name of window 1)
-              keystroke "g" using {command down, shift down}
-              delay 1
-              keystroke (system attribute "GITHUB_WORKSPACE") & "/official-export"
-              key code 36
               delay 2
-              key code 36
-              delay 5
+              log "FILE ITEMS: " & ((name of every menu item of menu 1 of menu bar item "File" of menu bar 1) as text)
+              log "WINDOW COUNT: " & (count of windows)
+              try
+                log "WINDOW CONTENT: " & (entire contents of window 1 as text)
+              end try
             end tell
           end tell
           APPLESCRIPT
-          echo "Official export files:"
-          find "$GITHUB_WORKSPACE/official-export" -maxdepth 2 -type f -print
-          find "$GITHUB_WORKSPACE/official-export" -maxdepth 1 -iname '*.svg' | grep -q . || {
-            echo "EXPORT_NOT_VERIFIED: no SVG created by the official app"
-            exit 1
-          }
-
-      - name: Capture the macOS desktop
-        run: |
-          screencapture -x "$GITHUB_WORKSPACE/sf-symbols-running.png" || true
-          ls -lh "$GITHUB_WORKSPACE/sf-symbols-running.png" || true
-
-      - name: Upload proof and official export
+          screencapture -x fresh-export/app.png || true
+      - name: Upload diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sf-symbols-macos-proof
-          path: |
-            sf-symbols-running.png
-            official-export/
+          name: sf-symbols-fresh-investigation
+          path: fresh-export/
           if-no-files-found: warn
