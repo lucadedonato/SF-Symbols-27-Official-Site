@@ -84,14 +84,45 @@ jobs:
           echo "Frontmost application:"
           osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true' || true
 
+      - name: Try official GUI export of folder as SVG
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/official-export"
+          osascript <<'APPLESCRIPT' || true
+          tell application "SF Symbols" to activate
+          delay 3
+          tell application "System Events"
+            keystroke "f" using command down
+            delay 1
+            keystroke "folder"
+            delay 2
+            key code 36
+            delay 2
+            key code 53
+            delay 1
+            keystroke "e" using command down
+            delay 3
+            keystroke "g" using {command down, shift down}
+            delay 1
+            keystroke (system attribute "GITHUB_WORKSPACE") & "/official-export"
+            key code 36
+            delay 2
+            key code 36
+            delay 5
+          end tell
+          APPLESCRIPT
+          echo "Exported files:"
+          find "$GITHUB_WORKSPACE/official-export" -maxdepth 2 -type f -print || true
+
       - name: Capture the macOS desktop
         run: |
           screencapture -x "$GITHUB_WORKSPACE/sf-symbols-running.png" || true
           ls -lh "$GITHUB_WORKSPACE/sf-symbols-running.png" || true
 
-      - name: Upload proof
+      - name: Upload proof and official export
         uses: actions/upload-artifact@v4
         with:
           name: sf-symbols-macos-proof
-          path: sf-symbols-running.png
+          path: |
+            sf-symbols-running.png
+            official-export/
           if-no-files-found: warn
